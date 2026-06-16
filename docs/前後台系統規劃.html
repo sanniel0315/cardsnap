@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CardSnap · 前後台系統規劃</title>
+<style>
+  :root{
+    --bg:#0a0e1a;--bg2:#0f1424;--card:#151b2e;--card2:#1a2238;--line:#26304a;
+    --txt:#e8edf7;--muted:#9aa6c0;--dim:#6b768f;--accent:#5b8cff;--accent2:#7c5cff;
+    --teal:#2dd4bf;--green:#34d399;--amber:#fbbf24;--pink:#f472b6;--red:#fb7185;
+    --grad:linear-gradient(135deg,#5b8cff,#7c5cff 55%,#f472b6);
+    --frontc:#5b8cff;--backc:#fbbf24;--apic:#2dd4bf;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;z-index:-1;
+    background:radial-gradient(700px 500px at 85% -5%,rgba(124,92,255,.2),transparent 60%),
+    radial-gradient(700px 500px at 8% 4%,rgba(91,140,255,.16),transparent 60%),
+    radial-gradient(800px 500px at 50% 100%,rgba(251,191,36,.07),transparent 60%)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(10,14,26,.72);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:20px;height:58px;overflow-x:auto}
+  nav .brand{font-weight:800;white-space:nowrap;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  nav a{color:var(--muted);text-decoration:none;font-size:14px;white-space:nowrap;transition:.2s}
+  nav a:hover{color:var(--txt)}
+  header{padding:84px 0 56px;text-align:center}
+  .pill{display:inline-block;padding:6px 16px;border:1px solid var(--line);border-radius:999px;
+    font-size:13px;color:var(--teal);margin-bottom:24px;background:rgba(45,212,191,.07)}
+  h1{font-size:clamp(34px,6vw,62px);line-height:1.06;font-weight:850;letter-spacing:-1px}
+  h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p.sub{max-width:660px;margin:22px auto 0;color:var(--muted);font-size:18px}
+  section{padding:60px 0;border-top:1px solid var(--line)}
+  .eyebrow{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h2{font-size:clamp(25px,4vw,36px);margin:10px 0 8px;font-weight:800;letter-spacing:-.5px}
+  h2+.lead{color:var(--muted);font-size:17px;max-width:780px;margin-bottom:12px}
+  h3{font-size:19px;margin:28px 0 12px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .muted{color:var(--muted)}
+  .grid{display:grid;gap:16px;margin-top:24px}
+  .g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:840px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);
+    border-radius:15px;padding:20px;transition:.22s;position:relative}
+  .card:hover{transform:translateY(-3px);border-color:#36456b;box-shadow:0 16px 36px -20px rgba(91,140,255,.45)}
+  .card .ic{font-size:23px;margin-bottom:9px;display:block}
+  .card h4{font-size:16px;margin-bottom:5px;font-weight:700}
+  .card p{font-size:14px;color:var(--muted)}
+  .card .tag{position:absolute;top:13px;right:13px;font-size:10.5px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+  /* split panorama */
+  .pano{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}
+  @media(max-width:840px){.pano{grid-template-columns:1fr}}
+  .side{border:1px solid var(--line);border-radius:18px;padding:22px;background:var(--bg2)}
+  .side.front{border-top:3px solid var(--frontc)}
+  .side.back{border-top:3px solid var(--backc)}
+  .side .stitle{font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+  .side.front .stitle{color:var(--frontc)}.side.back .stitle{color:var(--backc)}
+  .side .sdesc{font-size:13.5px;color:var(--muted);margin-bottom:14px}
+  .node{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;font-size:13.5px}
+  .node b{display:block;font-size:14px}.node small{color:var(--dim);font-size:12px}
+  .midbar{text-align:center;margin:16px 0;color:var(--apic);font-weight:700;font-size:14px}
+  .shared{border:1px dashed var(--apic);border-radius:16px;padding:18px;margin-top:18px;background:rgba(45,212,191,.04)}
+  .shared .stitle{color:var(--apic);font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+  .shared .nodes{display:flex;gap:10px;flex-wrap:wrap}
+  .shared .node{flex:1;min-width:130px;margin:0;text-align:center}
+  /* table */
+  .tablewrap{overflow-x:auto;margin-top:22px;border:1px solid var(--line);border-radius:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+  th,td{padding:12px 15px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--card2);font-weight:700;font-size:12.5px;letter-spacing:.5px}
+  td{color:var(--muted)}td b{color:var(--txt)}tr:last-child td{border-bottom:none}
+  .m{font-family:"SF Mono",Consolas,monospace;font-size:12.5px;color:#a9c7ff}
+  .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:700}
+  .b-get{background:rgba(52,211,153,.15);color:var(--green)}
+  .b-post{background:rgba(91,140,255,.16);color:#bcd0ff}
+  .b-admin{background:rgba(251,191,36,.16);color:var(--amber)}
+  .b-del{background:rgba(251,113,133,.15);color:var(--red)}
+  /* steps / flow */
+  .flow{margin-top:24px;display:grid;gap:12px}
+  .frow{display:flex;gap:14px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 18px}
+  .frow .n{flex:none;width:34px;height:34px;border-radius:9px;background:var(--grad);display:grid;place-items:center;font-weight:800;font-size:15px}
+  .frow h4{font-size:15.5px;margin-bottom:2px}.frow p{font-size:13.5px;color:var(--muted)}
+  .frow code{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--teal)}
+  /* rbac */
+  .rbac{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+  @media(max-width:840px){.rbac{grid-template-columns:1fr 1fr}}
+  .role{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .role h4{font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .role ul{list-style:none;font-size:12.5px;color:var(--muted)}
+  .role li{padding:4px 0;border-bottom:1px solid var(--line)}.role li:last-child{border:none}
+  /* timeline */
+  .timeline{margin-top:26px;position:relative;padding-left:28px}
+  .timeline::before{content:"";position:absolute;left:8px;top:5px;bottom:5px;width:2px;background:linear-gradient(var(--accent),var(--accent2),transparent)}
+  .tl{position:relative;margin-bottom:22px}
+  .tl::before{content:"";position:absolute;left:-27px;top:4px;width:13px;height:13px;border-radius:50%;background:var(--bg);border:3px solid var(--accent)}
+  .tl .ph{font-size:12.5px;color:var(--teal);font-weight:700;letter-spacing:1px}
+  .tl h4{font-size:17px;margin:2px 0 5px}.tl ul{margin:6px 0 0 17px;color:var(--muted);font-size:14px}
+  .callout{margin-top:22px;border-left:3px solid var(--amber);background:rgba(251,191,36,.06);border-radius:0 12px 12px 0;padding:15px 19px}
+  .callout.tip{border-color:var(--teal);background:rgba(45,212,191,.06)}
+  .callout p{font-size:14px;color:var(--muted)}.callout b{color:var(--txt)}
+  pre{background:#0b1020;border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto;margin-top:16px;font-size:12.5px;line-height:1.6}
+  code{font-family:"SF Mono",Consolas,monospace;color:#a9c7ff}.c{color:#6b768f}.k{color:#7c5cff}.s{color:#34d399}
+  footer{padding:46px 0 64px;text-align:center;color:var(--dim);font-size:14px;border-top:1px solid var(--line)}
+  .reveal{opacity:0;transform:translateY(24px);transition:.7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <span class="brand">◈ CardSnap</span>
+  <a href="#pano">全景</a><a href="#front">前台</a><a href="#back">後台</a>
+  <a href="#api">後端 / API</a><a href="#data">資料模型</a><a href="#flow">資料流</a>
+  <a href="#rbac">權限</a><a href="#deploy">部署</a><a href="#plan">開發優先序</a>
+</div></nav>
+
+<header>
+  <div class="wrap">
+    <span class="pill">前後台系統規劃 · v1.0 · 2026/06</span>
+    <h1>前台 × 後台<br><span class="g">一套後端,兩個介面</span></h1>
+    <p class="sub">CardSnap 的<b>前台</b>(顧客端 Web + App)負責拍照建檔與名單體驗;<b>後台</b>(營運管理 Admin)管理使用者、訂閱、廣告、用量與數據。兩者共用同一組後端服務與資料庫。</p>
+  </div>
+</header>
+
+<!-- 全景 -->
+<section id="pano"><div class="wrap reveal">
+  <span class="eyebrow">01 · Panorama</span>
+  <h2>系統全景</h2>
+  <p class="lead">三塊:<b style="color:var(--frontc)">前台</b>給使用者、<b style="color:var(--backc)">後台</b>給營運團隊,中間是<b style="color:var(--apic)">共用後端</b>。前後台都只透過 API 存取後端,權限清楚分離。</p>
+  <div class="pano">
+    <div class="side front">
+      <div class="stitle">▲ 前台 Front-stage</div>
+      <div class="sdesc">顧客端 · 公開下載使用</div>
+      <div class="node"><b>📱 行動 App</b><small>React Native · iOS / Android</small></div>
+      <div class="node"><b>🌐 網頁 / PWA</b><small>Next.js · 桌機與手機瀏覽器</small></div>
+      <div class="node"><b>🪪 行銷著陸頁</b><small>下載導引 · SEO</small></div>
+    </div>
+    <div class="side back">
+      <div class="stitle">▼ 後台 Back-office</div>
+      <div class="sdesc">營運團隊 · 內部登入 · 權限控管</div>
+      <div class="node"><b>📊 Admin 管理主控台</b><small>Next.js / Refine 後台</small></div>
+      <div class="node"><b>🎛️ 營運儀表板</b><small>數據 · 用量 · 營收</small></div>
+      <div class="node"><b>🛟 客服 / 審核工具</b><small>工單 · 檢舉處理</small></div>
+    </div>
+  </div>
+  <div class="midbar">⇅ 皆透過 HTTPS / REST API ⇅</div>
+  <div class="shared">
+    <div class="stitle">◈ 共用後端 Shared Backend</div>
+    <div class="nodes">
+      <div class="node"><b>Auth</b><small>帳號 / 權限</small></div>
+      <div class="node"><b>Postgres DB</b><small>名片 · 用戶 · 訂閱</small></div>
+      <div class="node"><b>Functions</b><small>同步 · webhook</small></div>
+      <div class="node"><b>Storage</b><small>影像快取</small></div>
+      <div class="node"><b>外部服務</b><small>Drive · Vision · 金流 · 廣告</small></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 前台 -->
+<section id="front"><div class="wrap reveal">
+  <span class="eyebrow">02 · Front-stage</span>
+  <h2>前台:顧客端</h2>
+  <p class="lead">使用者實際操作的介面。核心動線是<b>拍照 → 確認 → 建檔 → 管理 → 匯出/分享</b>,加上登入、雲端同步與訂閱付費牆。</p>
+  <h3>🧭 主要畫面與動線</h3>
+  <div class="grid g3">
+    <div class="card"><span class="tag">入口</span><span class="ic">🔐</span><h4>登入 / 註冊</h4><p>Google / Apple 一鍵登入;免登入也可先試用(本機暫存)。</p></div>
+    <div class="card"><span class="tag">核心</span><span class="ic">📷</span><h4>拍照掃描</h4><p>相機取景、邊界校正、端上 OCR、欄位自動填入。</p></div>
+    <div class="card"><span class="tag">核心</span><span class="ic">✅</span><h4>確認 / 編輯</h4><p>預填表單一眼校對,對照原圖修正後存檔。</p></div>
+    <div class="card"><span class="tag">核心</span><span class="ic">🗂️</span><h4>名單列表</h4><p>搜尋、標籤篩選、收藏、卡片/清單檢視。</p></div>
+    <div class="card"><span class="tag">核心</span><span class="ic">👤</span><h4>名片詳情 / 分享</h4><p>撥號、寄信、vCard、QR、Web Share。</p></div>
+    <div class="card"><span class="tag">核心</span><span class="ic">📤</span><h4>匯出</h4><p>CSV / vCard / Excel 一鍵匯出整份名單。</p></div>
+    <div class="card"><span class="tag">Pro</span><span class="ic">☁️</span><h4>雲端同步</h4><p>連結 Google Drive,多裝置即時同步。</p></div>
+    <div class="card"><span class="tag">變現</span><span class="ic">💎</span><h4>訂閱付費牆</h4><p>觸發點顯示方案,RevenueCat 內購,7 天試用。</p></div>
+    <div class="card"><span class="tag">變現</span><span class="ic">📺</span><h4>廣告位</h4><p>免費版橫幅/原生廣告;Pro 自動隱藏。</p></div>
+  </div>
+  <h3>🧱 前台技術</h3>
+  <p class="muted">React Native + Expo(App)與 Next.js(Web)共用 TypeScript 商業邏輯與設計系統;端上 OCR 用 ML Kit / Vision / Tesseract.js;狀態與本地快取用 SQLite / IndexedDB。前台<b>不直接碰資料庫</b>,一律走後端 API。</p>
+</div></section>
+
+<!-- 後台 -->
+<section id="back"><div class="wrap reveal">
+  <span class="eyebrow">03 · Back-office</span>
+  <h2>後台:營運管理主控台</h2>
+  <p class="lead">給內部團隊用的 Admin。看得到全平台運作、管得動使用者與訂閱、調得了廣告與功能開關,並掌握 OCR 用量成本與營收數據。</p>
+  <div class="grid g3">
+    <div class="card"><span class="ic">📊</span><h4>營運儀表板</h4><p>DAU/MAU、新增名片數、掃描成功率、訂閱轉換漏斗、MRR/營收趨勢。</p></div>
+    <div class="card"><span class="ic">👥</span><h4>使用者管理</h4><p>搜尋用戶、查看方案與裝置、停權/復權、重設、刪除帳號(個資請求)。</p></div>
+    <div class="card"><span class="ic">💳</span><h4>訂閱與金流</h4><p>訂閱狀態、試用、退款、RevenueCat 對帳、優惠碼與促銷管理。</p></div>
+    <div class="card"><span class="ic">📺</span><h4>廣告管理</h4><p>廣告版位開關、頻率上限、A/B 測試、AdMob 成效檢視。</p></div>
+    <div class="card"><span class="ic">🧮</span><h4>OCR 用量與成本</h4><p>端上 vs 雲端辨識比例、Cloud Vision 呼叫數與費用、異常用量告警。</p></div>
+    <div class="card"><span class="ic">🚩</span><h4>內容檢舉 / 審核</h4><p>分享連結濫用、不當內容檢舉處理、封鎖名單。</p></div>
+    <div class="card"><span class="ic">🔔</span><h4>推播通知</h4><p>分眾推播(免費→Pro 促購、回流提醒)、排程與成效。</p></div>
+    <div class="card"><span class="ic">🛟</span><h4>客服工單</h4><p>使用者回報、Intercom 整合、常見問題與回覆範本。</p></div>
+    <div class="card"><span class="ic">🎚️</span><h4>Feature Flags / 設定</h4><p>功能開關、灰度發佈、各方案配額(名片上限、批次)即時調整。</p></div>
+    <div class="card"><span class="ic">📜</span><h4>稽核日誌</h4><p>誰在何時改了什麼——所有後台操作留痕,符合法遵。</p></div>
+  </div>
+  <h3>🧱 後台技術</h3>
+  <p class="muted">用 <b>Refine</b> 或 <b>React-Admin</b>(或 Next.js + shadcn dashboard)快速搭建,串接後端 Admin API;圖表用 Recharts;部署在內網/受權限保護的網域,僅內部 SSO 登入。<b>後台與前台分屬不同部署與權限域</b>,降低風險。</p>
+</div></section>
+
+<!-- API -->
+<section id="api"><div class="wrap reveal">
+  <span class="eyebrow">04 · Backend & API</span>
+  <h2>後端服務與 API</h2>
+  <p class="lead">後端以 BaaS(Supabase / Firebase)為核心,搭配少量 Cloud Functions。API 分兩組:<b>前台 API</b>(使用者自己的資料)與 <b>Admin API</b>(營運、需高權限)。</p>
+  <h3>🔌 前台 API(顧客端)</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>方法</th><th>端點</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-post">POST</span></td><td class="m">/auth/login</td><td>Google/Apple 登入換取 token</td></tr>
+      <tr><td><span class="badge b-get">GET</span></td><td class="m">/contacts</td><td>取得名單(支援搜尋、標籤、分頁)</td></tr>
+      <tr><td><span class="badge b-post">POST</span></td><td class="m">/contacts</td><td>新增名片(欄位 + 原圖參照)</td></tr>
+      <tr><td><span class="badge b-post">PATCH</span></td><td class="m">/contacts/:id</td><td>編輯名片 / 收藏</td></tr>
+      <tr><td><span class="badge b-del">DELETE</span></td><td class="m">/contacts/:id</td><td>刪除名片</td></tr>
+      <tr><td><span class="badge b-post">POST</span></td><td class="m">/ocr/enhance</td><td>雲端高精度二次辨識(Pro)</td></tr>
+      <tr><td><span class="badge b-post">POST</span></td><td class="m">/sync/drive</td><td>備份 / 還原至 Google Drive</td></tr>
+      <tr><td><span class="badge b-get">GET</span></td><td class="m">/export?fmt=csv|vcf</td><td>伺服器端產生匯出檔</td></tr>
+      <tr><td><span class="badge b-get">GET</span></td><td class="m">/me/subscription</td><td>查目前方案 / 配額</td></tr>
+      <tr><td><span class="badge b-post">POST</span></td><td class="m">/billing/webhook</td><td>RevenueCat 訂閱事件(伺服器對伺服器)</td></tr>
+    </tbody>
+  </table></div>
+  <h3>🛡️ Admin API(後台,需 admin 角色)</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>方法</th><th>端點</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-admin">GET</span></td><td class="m">/admin/metrics</td><td>儀表板數據(DAU、轉換、MRR)</td></tr>
+      <tr><td><span class="badge b-admin">GET</span></td><td class="m">/admin/users</td><td>使用者清單與搜尋</td></tr>
+      <tr><td><span class="badge b-admin">PATCH</span></td><td class="m">/admin/users/:id</td><td>停權 / 改方案 / 重設</td></tr>
+      <tr><td><span class="badge b-admin">GET</span></td><td class="m">/admin/subscriptions</td><td>訂閱與退款管理</td></tr>
+      <tr><td><span class="badge b-admin">GET</span></td><td class="m">/admin/ocr-usage</td><td>OCR 用量與雲端成本</td></tr>
+      <tr><td><span class="badge b-admin">PUT</span></td><td class="m">/admin/ads-config</td><td>廣告版位與頻率設定</td></tr>
+      <tr><td><span class="badge b-admin">PUT</span></td><td class="m">/admin/feature-flags</td><td>功能開關 / 配額</td></tr>
+      <tr><td><span class="badge b-admin">GET</span></td><td class="m">/admin/reports</td><td>檢舉 / 審核佇列</td></tr>
+      <tr><td><span class="badge b-admin">POST</span></td><td class="m">/admin/push</td><td>發送分眾推播</td></tr>
+      <tr><td><span class="badge b-admin">GET</span></td><td class="m">/admin/audit-logs</td><td>稽核日誌查詢</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout tip"><p><b>安全分層:</b> Admin API 走獨立網域與更嚴格驗證(內部 SSO + IP 白名單 + RBAC),前台 token 永遠拿不到 Admin 權限。資料庫以 Row Level Security 確保使用者只能讀寫自己的名片。</p></div>
+</div></section>
+
+<!-- 資料模型 -->
+<section id="data"><div class="wrap reveal">
+  <span class="eyebrow">05 · Data Model</span>
+  <h2>資料模型擴充(含後台)</h2>
+  <p class="lead">在前台的 contacts / tags 之外,後台需要使用者、訂閱、廣告設定、功能開關、稽核與工單等資料表。</p>
+  <pre><code><span class="c">// ── 共用 / 前台 ──</span>
+users          { id, email, auth_provider, plan, pro_expires_at, status, created_at }
+contacts       { id, owner_id→users, name, company, title, phones, emails,
+                 address, website, note, image_drive_id, ocr_confidence, source,
+                 is_favorite, created_at, updated_at }
+tags           { id, owner_id, name, color }
+contact_tags   { contact_id, tag_id }
+
+<span class="c">// ── 後台 / 營運 ──</span>
+subscriptions  { id, user_id→users, store, product_id, status,
+                 trial_end, renews_at, revenue, refunded }
+admin_users    { id, email, role, sso_subject, last_login }   <span class="c">// 後台帳號</span>
+ad_units       { id, placement, enabled, frequency_cap, ab_variant }
+feature_flags  { key, enabled, rollout_pct, plan_quota_json }
+ocr_usage      { id, user_id, type, cost, created_at }        <span class="c">// 端上/雲端</span>
+reports        { id, target_type, target_id, reason, status, handled_by }
+support_tickets{ id, user_id, subject, status, assignee, messages_json }
+audit_logs     { id, admin_id→admin_users, action, target, before, after, at }</code></pre>
+  <div class="callout"><p><b>原則:</b> 名片影像仍存使用者自己的 Google Drive(<span class="m">image_drive_id</span> 參照),後台只看得到中繼資料與統計,看不到名片內容明細——隱私與法遵兼顧。</p></div>
+</div></section>
+
+<!-- 資料流 -->
+<section id="flow"><div class="wrap reveal">
+  <span class="eyebrow">06 · Data Flow</span>
+  <h2>關鍵資料流</h2>
+  <p class="lead">三條最重要的串接,串起前台、後端與後台。</p>
+  <h3>① 掃描建檔 → 同步</h3>
+  <div class="flow">
+    <div class="frow"><div class="n">1</div><div><h4>前台掃描</h4><p>App 端上 OCR 解析欄位,使用者確認</p></div></div>
+    <div class="frow"><div class="n">2</div><div><h4>寫入後端</h4><p><code>POST /contacts</code> 存中繼資料,影像備份到 Drive</p></div></div>
+    <div class="frow"><div class="n">3</div><div><h4>後台統計</h4><p>掃描事件進 <code>ocr_usage</code>,儀表板即時更新</p></div></div>
+  </div>
+  <h3>② 訂閱 → 解鎖</h3>
+  <div class="flow">
+    <div class="frow"><div class="n">1</div><div><h4>前台購買</h4><p>付費牆 → RevenueCat 內購完成</p></div></div>
+    <div class="frow"><div class="n">2</div><div><h4>Webhook 通知</h4><p><code>POST /billing/webhook</code> 更新 <code>subscriptions</code> 與 <code>users.plan</code></p></div></div>
+    <div class="frow"><div class="n">3</div><div><h4>前台生效</h4><p>下次 <code>GET /me/subscription</code> 取得 Pro,關閉廣告、開放批次</p></div></div>
+  </div>
+  <h3>③ 後台調整 → 前台即時</h3>
+  <div class="flow">
+    <div class="frow"><div class="n">1</div><div><h4>後台改設定</h4><p>營運於 Admin 改 <code>feature_flags</code> 或廣告頻率</p></div></div>
+    <div class="frow"><div class="n">2</div><div><h4>留痕</h4><p>變更寫入 <code>audit_logs</code></p></div></div>
+    <div class="frow"><div class="n">3</div><div><h4>前台拉取</h4><p>前台啟動時讀 flags,無需改版即生效(灰度發佈)</p></div></div>
+  </div>
+</div></section>
+
+<!-- 權限 -->
+<section id="rbac"><div class="wrap reveal">
+  <span class="eyebrow">07 · Access Control</span>
+  <h2>後台角色權限(RBAC)</h2>
+  <p class="lead">後台不是「一把鑰匙開所有門」。依職務分四種角色,最小權限原則,降低誤操作與內部風險。</p>
+  <div class="rbac">
+    <div class="role"><h4>👑 Owner</h4><ul><li>全部權限</li><li>管理 admin 帳號</li><li>金流 / 退款</li><li>系統設定</li></ul></div>
+    <div class="role"><h4>🛠️ Admin</h4><ul><li>使用者管理</li><li>訂閱檢視</li><li>功能開關</li><li>廣告設定</li></ul></div>
+    <div class="role"><h4>🛟 Support</h4><ul><li>查使用者</li><li>客服工單</li><li>檢舉處理</li><li>不可改金流</li></ul></div>
+    <div class="role"><h4>📊 Analyst</h4><ul><li>儀表板唯讀</li><li>報表匯出</li><li>用量數據</li><li>不可改資料</li></ul></div>
+  </div>
+  <div class="callout"><p><b>稽核:</b> 所有後台寫入操作(改方案、退款、停權、改 flag)一律記錄於 <span class="m">audit_logs</span>,含操作者、前後值與時間,可回溯。</p></div>
+</div></section>
+
+<!-- 部署 -->
+<section id="deploy"><div class="wrap reveal">
+  <span class="eyebrow">08 · Deployment</span>
+  <h2>部署與環境</h2>
+  <p class="lead">前台、後台、後端各自獨立部署,三套環境(dev / staging / prod)隔離。網頁端維持「推到 GitHub 自動部署」的工作流。</p>
+  <div class="grid g3">
+    <div class="card"><span class="ic">🌐</span><h4>前台 Web</h4><p>GitHub → Pages / Vercel 自動部署;PWA 可安裝。</p></div>
+    <div class="card"><span class="ic">📱</span><h4>前台 App</h4><p>EAS Build 出 iOS/Android,送 App Store / Play;OTA 熱更新。</p></div>
+    <div class="card"><span class="ic">🎛️</span><h4>後台 Admin</h4><p>Vercel 內部網域 + SSO + IP 白名單,與前台分離。</p></div>
+    <div class="card"><span class="ic">🗄️</span><h4>後端 BaaS</h4><p>Supabase / Firebase 專案,分 dev/staging/prod。</p></div>
+    <div class="card"><span class="ic">⚙️</span><h4>CI/CD</h4><p>GitHub Actions:測試 → 部署;PR 預覽環境。</p></div>
+    <div class="card"><span class="ic">📈</span><h4>監控</h4><p>Sentry 當機回報、Analytics 漏斗、用量告警。</p></div>
+  </div>
+</div></section>
+
+<!-- 開發優先序 -->
+<section id="plan"><div class="wrap reveal">
+  <span class="eyebrow">09 · Sequencing</span>
+  <h2>開發優先序</h2>
+  <p class="lead">先把前台 MVP 與後端打穩(已有網頁版雛形),再補後端 API 與後台 Admin。後台不必一次到位,依營運需求分批長出來。</p>
+  <div class="timeline">
+    <div class="tl"><div class="ph">已完成</div><h4>前台 Web MVP</h4><ul><li>拍照 OCR、名單、匯出/分享、PWA(本機儲存)</li></ul></div>
+    <div class="tl"><div class="ph">NEXT · 後端基礎</div><h4>帳號 + 雲端 + API</h4><ul><li>Auth 登入、contacts API、Google Drive 同步</li><li>前台改接後端(取代純本機)</li></ul></div>
+    <div class="tl"><div class="ph">後台 v1</div><h4>最小 Admin</h4><ul><li>使用者管理、營運儀表板、稽核日誌</li><li>Feature flags(配額即時調整)</li></ul></div>
+    <div class="tl"><div class="ph">變現</div><h4>訂閱 + 廣告 + 後台對應</h4><ul><li>RevenueCat 訂閱、付費牆、AdMob</li><li>後台:訂閱/金流、廣告管理、OCR 成本</li></ul></div>
+    <div class="tl"><div class="ph">App 上架</div><h4>行動 App + 後台補強</h4><ul><li>React Native App 上 iOS/Android</li><li>後台:推播、客服工單、檢舉審核</li></ul></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p><b>CardSnap</b> 前後台系統規劃 v1.0 · 2026/06</p>
+  <p style="margin-top:8px">前台已有可運作網頁版;下一步建議從「後端帳號 + contacts API」開始。</p>
+</div></footer>
+
+<script>
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

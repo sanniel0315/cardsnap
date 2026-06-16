@@ -53,43 +53,4 @@ npm run ci      # lint + test，等同 CI 跑的內容
 
 ```bash
 # Windows（命令提示字元）
-setup-github.bat https://github.com/你的帳號/cardsnap.git
-
-# Mac / Linux / Git Bash
-bash setup-github.sh https://github.com/你的帳號/cardsnap.git
-```
-
-**方法 B — GitHub Desktop（不用打指令）**：
-File → Add Local Repository → 選 `cardsnap` 資料夾 → Publish repository。
-
-**方法 C — 手動指令**：
-
-```bash
-git init && git add -A && git commit -m "feat: CardSnap web MVP"
-git branch -M main
-git remote add origin https://github.com/你的帳號/cardsnap.git
-git push -u origin main
-```
-
-## 🧱 技術
-
-| 項目 | 用什麼 |
-|---|---|
-| OCR | [Tesseract.js](https://tesseract.projectnaptha.com/)（端上，免費、離線） |
-| QR | [qrcode](https://www.npmjs.com/package/qrcode) |
-| 儲存 | 瀏覽器 `localStorage` |
-| 部署 | GitHub Pages + Actions |
-
-無框架、無打包，方便日後接到藍圖規劃的 Next.js / React Native 版本。
-
-## 🗺️ 後續（對應藍圖）
-
-- [ ] Google Drive 同步（用戶自有雲端備份）
-- [ ] 批次掃描
-- [ ] 帳號登入與多裝置同步
-- [ ] RevenueCat 訂閱 / AdMob 廣告（App 版）
-- [ ] React Native App 上架 iOS / Android
-
-## 📄 授權
-
-MIT © 2026 sanniel
+setup-github.

@@ -1,0 +1,25 @@
+name: CI
+
+# 每次 push 任何分支、以及每個 PR,都自動跑語法檢查 + 單元測試
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint（node --check 語法檢查,零相依)
+        run: npm run lint
+
+      - name: Unit tests（node --test)
+        run: npm test
