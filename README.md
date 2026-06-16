@@ -17,27 +17,33 @@
 - 🔗 **分享**：Web Share API、複製、vCard 下載、**QR Code** 掃描存入通訊錄
 - 📱 **PWA**：可「加入主畫面」當 App 用，支援離線開啟
 
-## 🚀 在本機跑
+## 🚀 開發（本機）
 
-純靜態前端，無需 build。任選一種起一個本機伺服器（OCR 需在 http/https 下才能用相機）：
+純靜態前端，無需 build。純邏輯集中在 `assets/core.js`（可被瀏覽器與 Node 共用）。
 
 ```bash
-# Python
-python3 -m http.server 8080
-# 或 Node
-npx serve .
+npm run dev     # 起本機伺服器 http://localhost:8080（OCR 需 http/https 才能用相機）
+npm run lint    # 語法檢查（node --check，零相依）
+npm test        # 單元測試（node --test）
+npm run ci      # lint + test，等同 CI 跑的內容
 ```
 
-然後開 <http://localhost:8080>。
+## ✅ 測試（自動）
 
-## ☁️ 部署到 GitHub Pages（自動）
+`test/core.test.js` 用 Node 內建 test runner 測 `parseCard`／`toVCard`／`toCSV`，**零第三方相依**。
 
-本專案內含 `.github/workflows/deploy-pages.yml`：**推到 `main` 分支就自動部署**。
+- `.github/workflows/ci.yml`：**每次 push 任何分支、每個 PR** 自動跑 lint + 測試。
+- 測試不過 → CI 紅燈、且 **不會部署**（見下）。
 
-1. 在 GitHub 建立 repo 並推送（見下方）。
-2. repo → **Settings → Pages → Build and deployment → Source 選「GitHub Actions」**。
-3. 之後每次 `git push`，網站自動更新，網址為
+## ☁️ 部署（自動，且需測試通過）
+
+`.github/workflows/deploy-pages.yml`：**推到 `main` → 先跑測試 → 通過才部署**到 GitHub Pages。
+
+1. repo → **Settings → Pages → Source 選「GitHub Actions」**（只需設定一次）。
+2. 之後每次 `git push` 到 `main`，自動測試 + 部署，網址：
    `https://<你的帳號>.github.io/<repo 名>/`。
+
+> 開發 → 測試 → 部署全自動：你只要 `git push`，其餘交給 GitHub Actions。
 
 ## 📦 首次推上 GitHub
 

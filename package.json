@@ -1,0 +1,14 @@
+{
+  "name": "cardsnap",
+  "version": "1.0.0",
+  "description": "拍照即建檔的名片整理 App(網頁 / PWA)",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "lint": "node --check assets/core.js && node --check assets/app.js && node --check sw.js",
+    "test": "node --test",
+    "ci": "npm run lint && npm test"
+  },
+  "license": "MIT"
+}
