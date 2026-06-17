@@ -107,7 +107,7 @@ async function recognize(source, previewUrl) {
     lastOcrRaw = (data.text || '').trim();
     // 掃描成功互動:綠色脈衝 + 勾選
     $('#scanStage').classList.add('done');
-    $('#ocrText').textContent = '辨識完成 ✓';
+    $('#ocrText').textContent = '辨識完成';
     await new Promise(r => setTimeout(r, 480));
     const fields = parseCard(lastOcrRaw);
     closeModal('#captureModal');
@@ -183,8 +183,8 @@ function render() {
         ${(c.tags||[]).length ? `<div class="c-tags">${c.tags.map(t=>`<span class="c-tag">${esc(t)}</span>`).join('')}</div>`:''}
       </div>
       <div class="c-quick">
-        ${c.phone?`<a href="tel:${esc(c.phone)}" title="撥打" onclick="event.stopPropagation()">📞</a>`:''}
-        ${c.email?`<a href="mailto:${esc(c.email)}" title="寄信" onclick="event.stopPropagation()">✉️</a>`:''}
+        ${c.phone?`<a href="tel:${esc(c.phone)}" title="撥打" onclick="event.stopPropagation()"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3l1.3 3.2-1.7 1.2a9 9 0 0 0 3.8 3.8l1.2-1.7L16.5 14v3a1 1 0 0 1-1.1 1A12.5 12.5 0 0 1 4 6.6 1 1 0 0 1 5 3.5"/></svg></a>`:''}
+        ${c.email?`<a href="mailto:${esc(c.email)}" title="寄信" onclick="event.stopPropagation()"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="2"/><path d="m3 6 7 5 7-5"/></svg></a>`:''}
       </div>
     </div>`).join('');
   $$('#list .contact').forEach(el => el.onclick = () => openDetail(el.dataset.id));
@@ -233,7 +233,7 @@ function saveEdit() {
     contacts.unshift({ id: uid(), created: Date.now(), favorite:false, raw:lastOcrRaw, ...data });
   }
   save(); render(); closeModal('#editModal'); resetCapture();
-  toast(editingId ? '已更新' : '已建檔 ✓');
+  toast(editingId ? '已更新' : '已建檔');
   editingId = null; lastOcrRaw = '';
 }
 
