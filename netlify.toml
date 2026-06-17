@@ -1,0 +1,11 @@
+# Netlify 設定:純靜態前端,無需 build,直接服務根目錄
+[build]
+  publish = "."
+  command = ""
+
+# SPA 不需要;單頁直接服務。基本安全標頭:
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
