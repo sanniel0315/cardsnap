@@ -39,22 +39,51 @@
   <button id="fab" class="fab" title="新增名片">＋</button>
 </div>
 
+<!-- ============ Capture / OCR modal ============ -->
 <div id="captureModal" class="modal hidden">
   <div class="modal-card">
-    <div class="modal-head"><h3>新增名片</h3><button class="icon-btn close" data-close>✕</button></div>
+    <div class="modal-head"><h3>掃描名片</h3><button class="icon-btn close" data-close>✕</button></div>
     <div class="modal-body">
-      <div id="dropzone" class="dropzone">
+
+      <!-- 即時相機(有相機時) -->
+      <div id="cameraView" class="camera-view hidden">
+        <video id="cameraVideo" playsinline autoplay muted></video>
+        <div class="cam-frame">
+          <i class="corner tl"></i><i class="corner tr"></i>
+          <i class="corner bl"></i><i class="corner br"></i>
+          <div class="scanline"></div>
+        </div>
+        <div class="cam-hint">將名片對齊框內 · 放滿、避免反光</div>
+        <button id="shutter" class="shutter" title="拍照"><span></span></button>
+      </div>
+
+      <!-- 後備:選圖 / 拖曳(無相機或不支援時) -->
+      <div id="dropzone" class="dropzone hidden">
         <div class="dz-ic">📷</div>
         <p><b>拍照</b> 或 <b>選擇名片圖片</b></p>
         <small>影像只在你的瀏覽器辨識,不會上傳</small>
         <input id="fileInput" type="file" accept="image/*" capture="environment" hidden>
       </div>
-      <img id="preview" class="preview hidden" alt="名片預覽">
-      <div id="ocrStatus" class="ocr-status hidden"><div class="spinner"></div><span id="ocrText">辨識中…</span></div>
+
+      <!-- 擷取後:掃描互動 -->
+      <div id="scanStage" class="scan-stage hidden">
+        <img id="preview" class="preview" alt="名片預覽">
+        <div class="scan-overlay"><div class="scan-sweep"></div></div>
+        <div class="scan-check">✓ 辨識完成</div>
+      </div>
+
+      <div id="ocrStatus" class="ocr-status hidden">
+        <div class="spinner"></div>
+        <span id="ocrText">辨識中…</span>
+      </div>
+
+      <button id="pickFallback" class="link-btn cam-switch hidden">改用相簿 / 選擇圖片</button>
+      <canvas id="captureCanvas" hidden></canvas>
     </div>
   </div>
 </div>
 
+<!-- ============ Edit / confirm modal ============ -->
 <div id="editModal" class="modal hidden">
   <div class="modal-card">
     <div class="modal-head"><h3 id="editTitle">確認名片資料</h3><button class="icon-btn close" data-close>✕</button></div>
@@ -81,6 +110,7 @@
   </div>
 </div>
 
+<!-- ============ Detail / share modal ============ -->
 <div id="detailModal" class="modal hidden">
   <div class="modal-card">
     <div class="modal-head"><h3 id="d_name">名片</h3><button class="icon-btn close" data-close>✕</button></div>
@@ -97,6 +127,7 @@
   </div>
 </div>
 
+<!-- ============ Export sheet ============ -->
 <div id="exportModal" class="modal hidden">
   <div class="modal-card sm">
     <div class="modal-head"><h3>匯出名單</h3><button class="icon-btn close" data-close>✕</button></div>

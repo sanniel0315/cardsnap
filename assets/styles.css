@@ -228,3 +228,52 @@ body::after{
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:rgba(45,212,191,.25);border-radius:10px;border:3px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:rgba(45,212,191,.4);background-clip:content-box}
+
+/* ============================================================
+   即時相機 · 對齊框 · 掃描互動
+   ============================================================ */
+.camera-view{position:relative;border-radius:var(--radius);overflow:hidden;background:#000;
+  aspect-ratio:3/4;max-height:64vh;border:1px solid var(--line)}
+.camera-view video{width:100%;height:100%;object-fit:cover;display:block}
+/* 取景框:框外壓暗 + 四角準星 */
+.cam-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:86%;aspect-ratio:1.586;border-radius:14px;
+  box-shadow:0 0 0 100vmax rgba(0,0,0,.5);}
+.cam-frame .corner{position:absolute;width:26px;height:26px;border:3px solid var(--teal);
+  filter:drop-shadow(0 0 6px rgba(45,212,191,.7))}
+.cam-frame .corner.tl{top:-2px;left:-2px;border-right:0;border-bottom:0;border-radius:12px 0 0 0}
+.cam-frame .corner.tr{top:-2px;right:-2px;border-left:0;border-bottom:0;border-radius:0 12px 0 0}
+.cam-frame .corner.bl{bottom:-2px;left:-2px;border-right:0;border-top:0;border-radius:0 0 0 12px}
+.cam-frame .corner.br{bottom:-2px;right:-2px;border-left:0;border-top:0;border-radius:0 0 12px 0}
+.cam-frame .scanline{position:absolute;left:5%;right:5%;height:2px;top:6%;
+  background:linear-gradient(90deg,transparent,var(--teal),transparent);
+  box-shadow:0 0 12px var(--teal);animation:camscan 2.4s ease-in-out infinite}
+@keyframes camscan{0%{top:6%}50%{top:90%}100%{top:6%}}
+.cam-hint{position:absolute;left:0;right:0;bottom:92px;text-align:center;color:#fff;font-size:13px;
+  font-weight:500;text-shadow:0 1px 8px rgba(0,0,0,.85);letter-spacing:.3px}
+.shutter{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  width:68px;height:68px;border-radius:50%;border:4px solid rgba(255,255,255,.92);
+  background:transparent;cursor:pointer;padding:0;
+  box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.shutter span{display:block;width:100%;height:100%;border-radius:50%;background:#fff;transform:scale(.84);transition:.12s}
+.shutter:active span{transform:scale(.68)}
+.cam-switch{display:block;width:100%;text-align:center;margin-top:14px;padding:6px}
+
+/* 擷取後:掃描互動 */
+.scan-stage{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line)}
+.scan-stage .preview{display:block;margin:0;width:100%;max-height:62vh}
+.scan-overlay{position:absolute;inset:0;pointer-events:none;transition:.3s}
+.scan-sweep{position:absolute;left:0;right:0;height:34%;top:-34%;
+  background:linear-gradient(180deg,transparent,rgba(45,212,191,.30),transparent);
+  border-bottom:2px solid var(--teal);box-shadow:0 0 20px rgba(45,212,191,.65);
+  animation:sweep 1.4s linear infinite}
+@keyframes sweep{0%{top:-34%}100%{top:100%}}
+.scan-check{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.8);
+  background:var(--emerald);color:#04161a;font-weight:800;font-size:15px;
+  padding:10px 18px;border-radius:999px;opacity:0;transition:.3s cubic-bezier(.2,.8,.2,1);
+  box-shadow:0 10px 30px -8px rgba(52,211,153,.7)}
+.scan-stage.done .scan-overlay{background:rgba(52,211,153,.14)}
+.scan-stage.done .scan-sweep{display:none}
+.scan-stage.done{outline:2px solid var(--emerald);outline-offset:-2px}
+.scan-stage.done .scan-check{opacity:1;transform:translate(-50%,-50%) scale(1)}
+@media (prefers-reduced-motion: reduce){.scanline,.scan-sweep{animation:none !important}}

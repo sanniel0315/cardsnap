@@ -1,13 +1,12 @@
 /* ============================================================
    CardSnap — 名片整理 PWA
-   端上 OCR (Tesseract.js) · 欄位解析 · 名單管理 · 匯出 / 分享
-   資料儲存於瀏覽器 localStorage (隱私優先,不上傳)
+   即時相機 + 對齊框 + 掃描互動;端上 OCR(Tesseract.js)
+   資料儲存於瀏覽器 localStorage(隱私優先,不上傳)
    純邏輯(parseCard / toVCard / toCSV)集中於 assets/core.js
    ============================================================ */
 'use strict';
 
 const STORE_KEY = 'cardsnap.contacts.v1';
-// 純邏輯來自 assets/core.js(於 index.html 先載入)
 const { parseCard, toVCard, toCSV } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -17,9 +16,10 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 let contacts = load();
 let activeTag = null;
 let query = '';
-let editingId = null;     // null = new
+let editingId = null;
 let lastOcrRaw = '';
 let detailId = null;
+let camStream = null;
 
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
@@ -28,18 +28,74 @@ function load() {
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); }
 
 /* ============================================================
-   OCR 流程
+   擷取流程:即時相機 → 擷取 → 掃描互動 → OCR
    ============================================================ */
-async function runOCR(file) {
-  const url = URL.createObjectURL(file);
-  $('#preview').src = url;
-  $('#preview').classList.remove('hidden');
-  $('#dropzone').classList.add('hidden');
-  $('#ocrStatus').classList.remove('hidden');
+function openCapture() {
+  resetCapture();
+  openModal('#captureModal');
+  startCamera();
+}
 
+async function startCamera() {
+  const ok = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  if (!ok) { showFileFallback(); return; }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+    const v = $('#cameraVideo');
+    v.srcObject = camStream;
+    await v.play().catch(() => {});
+    $('#cameraView').classList.remove('hidden');
+    $('#dropzone').classList.add('hidden');
+    $('#pickFallback').classList.remove('hidden');
+  } catch (e) {
+    showFileFallback();
+  }
+}
+
+function showFileFallback() {
+  $('#cameraView').classList.add('hidden');
+  $('#pickFallback').classList.add('hidden');
+  $('#dropzone').classList.remove('hidden');
+}
+
+function stopCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  const v = $('#cameraVideo');
+  if (v) v.srcObject = null;
+}
+
+function captureFromCamera() {
+  const v = $('#cameraVideo');
+  const vw = v.videoWidth, vh = v.videoHeight;
+  if (!vw || !vh) { toast('相機尚未就緒,請稍候'); return; }
+  // 置中裁切成名片比例(85.6×54mm ≈ 1.586:1),對齊畫面上的取景框
+  const ar = 1.586;
+  let cw = vw * 0.9, ch = cw / ar;
+  if (ch > vh * 0.92) { ch = vh * 0.92; cw = ch * ar; }
+  const cx = (vw - cw) / 2, cy = (vh - ch) / 2;
+  const cv = $('#captureCanvas');
+  cv.width = Math.round(cw); cv.height = Math.round(ch);
+  cv.getContext('2d').drawImage(v, cx, cy, cw, ch, 0, 0, cv.width, cv.height);
+  const dataUrl = cv.toDataURL('image/jpeg', 0.92);
+  stopCamera();
+  $('#cameraView').classList.add('hidden');
+  $('#pickFallback').classList.add('hidden');
+  recognize(cv, dataUrl);
+}
+
+async function recognize(source, previewUrl) {
+  $('#preview').src = previewUrl;
+  $('#dropzone').classList.add('hidden');
+  $('#scanStage').classList.remove('hidden');     // 顯示擷取畫面 + 掃描動畫
+  $('#scanStage').classList.remove('done');
+  $('#ocrStatus').classList.remove('hidden');
+  $('#ocrText').textContent = '辨識中…';
   try {
     if (typeof Tesseract === 'undefined') throw new Error('OCR 引擎尚未載入,請檢查網路');
-    const { data } = await Tesseract.recognize(url, 'chi_tra+eng', {
+    const { data } = await Tesseract.recognize(source, 'chi_tra+eng', {
       logger: m => {
         if (m.status === 'recognizing text')
           $('#ocrText').textContent = `辨識中… ${Math.round(m.progress * 100)}%`;
@@ -49,22 +105,35 @@ async function runOCR(file) {
       }
     });
     lastOcrRaw = (data.text || '').trim();
+    // 掃描成功互動:綠色脈衝 + 勾選
+    $('#scanStage').classList.add('done');
+    $('#ocrText').textContent = '辨識完成 ✓';
+    await new Promise(r => setTimeout(r, 480));
     const fields = parseCard(lastOcrRaw);
     closeModal('#captureModal');
     openEdit(null, fields, lastOcrRaw);
-    if (!lastOcrRaw) toast('沒辨識到文字,請手動填寫');
+    if (!lastOcrRaw) toast('沒辨識到文字,請手動填寫或重拍');
   } catch (e) {
     toast('辨識失敗:' + e.message);
     resetCapture();
-  } finally {
-    URL.revokeObjectURL(url);
+    startCamera();
   }
 }
 
+function runOCR(file) {
+  const url = URL.createObjectURL(file);
+  recognize(url, url);
+}
+
 function resetCapture() {
-  $('#dropzone').classList.remove('hidden');
-  $('#preview').classList.add('hidden');
+  stopCamera();
+  $('#cameraView').classList.add('hidden');
+  $('#dropzone').classList.add('hidden');
+  $('#pickFallback').classList.add('hidden');
+  $('#scanStage').classList.add('hidden');
+  $('#scanStage').classList.remove('done');
   $('#ocrStatus').classList.add('hidden');
+  $('#preview').removeAttribute('src');
   $('#fileInput').value = '';
 }
 
@@ -97,7 +166,6 @@ function render() {
   $('#countLabel').textContent = `共 ${contacts.length} 張名片` + (activeTag ? ` · #${activeTag}` : '');
   $('#empty').classList.toggle('hidden', contacts.length !== 0);
 
-  // tag chips
   const tags = allTags();
   $('#tagChips').innerHTML = tags.map(t =>
     `<span class="chip ${t===activeTag?'active':''}" data-tag="${esc(t)}">#${esc(t)}</span>`).join('');
@@ -105,7 +173,6 @@ function render() {
     activeTag = ch.dataset.tag === activeTag ? null : ch.dataset.tag; render();
   });
 
-  // list
   const list = $('#list');
   list.innerHTML = data.map(c => `
     <div class="contact" data-id="${c.id}">
@@ -193,7 +260,6 @@ function openDetail(id) {
     row('備註', c.note);
   $('#favToggle').onclick = () => { c.favorite = !c.favorite; save(); render(); openDetail(id); };
 
-  // QR (vCard)
   try {
     if (typeof QRCode !== 'undefined') {
       QRCode.toCanvas($('#qrCanvas'), toVCard(c), { width:180, margin:1 }, ()=>{});
@@ -246,7 +312,7 @@ async function shareContact(c) {
    ============================================================ */
 function esc(s){ return String(s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function openModal(sel){ $(sel).classList.remove('hidden'); }
-function closeModal(sel){ $(sel).classList.add('hidden'); }
+function closeModal(sel){ if (sel === '#captureModal') stopCamera(); $(sel).classList.add('hidden'); }
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden');
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.add('hidden'),2200); }
@@ -255,11 +321,13 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove(
    事件綁定
    ============================================================ */
 function bind() {
-  $('#fab').onclick = () => { resetCapture(); openModal('#captureModal'); };
+  $('#fab').onclick = openCapture;
+  $('#shutter').onclick = captureFromCamera;
+  $('#pickFallback').onclick = () => $('#fileInput').click();
   $('#dropzone').onclick = () => $('#fileInput').click();
   $('#fileInput').onchange = e => { if (e.target.files[0]) runOCR(e.target.files[0]); };
 
-  // drag & drop (桌機)
+  // drag & drop(桌機後備)
   const dz = $('#dropzone');
   ['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
   ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
