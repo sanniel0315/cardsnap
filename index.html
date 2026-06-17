@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0a0e1a">
+<meta name="theme-color" content="#070f12">
 <meta name="description" content="CardSnap — 拍照即建檔的名片整理 App。端上 OCR、名單管理、匯出 CSV/vCard、一鍵分享。">
 <title>CardSnap · 名片整理</title>
 <link rel="manifest" href="./manifest.webmanifest">
@@ -15,7 +15,6 @@
 </head>
 <body>
 <div id="app">
-  <!-- Header -->
   <header class="topbar">
     <div class="brand">◈ CardSnap</div>
     <div class="top-actions">
@@ -23,40 +22,26 @@
       <button id="btnExport" class="icon-btn" title="匯出名單">⬇︎</button>
     </div>
   </header>
-
-  <!-- Search bar -->
   <div id="searchBar" class="searchbar hidden">
     <input id="searchInput" type="search" placeholder="搜尋姓名、公司、電話、email、標籤…" autocomplete="off">
     <button id="searchClear" class="link-btn">清除</button>
   </div>
-
-  <!-- Stats / filter chips -->
   <div class="filters">
     <span class="count" id="countLabel">共 0 張名片</span>
     <div class="chips" id="tagChips"></div>
   </div>
-
-  <!-- Contact list -->
   <main id="list" class="list"></main>
-
-  <!-- Empty state -->
   <div id="empty" class="empty">
     <div class="empty-ic">🪪</div>
     <h2>還沒有名片</h2>
     <p>點下方按鈕拍張名片,系統會自動辨識並建檔。</p>
   </div>
-
-  <!-- Floating action button -->
   <button id="fab" class="fab" title="新增名片">＋</button>
 </div>
 
-<!-- ============ Capture / OCR modal ============ -->
 <div id="captureModal" class="modal hidden">
   <div class="modal-card">
-    <div class="modal-head">
-      <h3>新增名片</h3>
-      <button class="icon-btn close" data-close>✕</button>
-    </div>
+    <div class="modal-head"><h3>新增名片</h3><button class="icon-btn close" data-close>✕</button></div>
     <div class="modal-body">
       <div id="dropzone" class="dropzone">
         <div class="dz-ic">📷</div>
@@ -65,21 +50,14 @@
         <input id="fileInput" type="file" accept="image/*" capture="environment" hidden>
       </div>
       <img id="preview" class="preview hidden" alt="名片預覽">
-      <div id="ocrStatus" class="ocr-status hidden">
-        <div class="spinner"></div>
-        <span id="ocrText">辨識中…</span>
-      </div>
+      <div id="ocrStatus" class="ocr-status hidden"><div class="spinner"></div><span id="ocrText">辨識中…</span></div>
     </div>
   </div>
 </div>
 
-<!-- ============ Edit / confirm modal ============ -->
 <div id="editModal" class="modal hidden">
   <div class="modal-card">
-    <div class="modal-head">
-      <h3 id="editTitle">確認名片資料</h3>
-      <button class="icon-btn close" data-close>✕</button>
-    </div>
+    <div class="modal-head"><h3 id="editTitle">確認名片資料</h3><button class="icon-btn close" data-close>✕</button></div>
     <div class="modal-body">
       <div class="edit-grid">
         <label>姓名<input id="f_name" type="text" placeholder="王小明"></label>
@@ -92,10 +70,7 @@
         <label class="full">標籤(逗號分隔)<input id="f_tags" type="text" placeholder="展場, 供應商"></label>
         <label class="full">備註<textarea id="f_note" rows="2" placeholder="在哪認識的、後續事項…"></textarea></label>
       </div>
-      <details class="raw">
-        <summary>查看原始辨識文字</summary>
-        <pre id="rawText"></pre>
-      </details>
+      <details class="raw"><summary>查看原始辨識文字</summary><pre id="rawText"></pre></details>
     </div>
     <div class="modal-foot">
       <button id="btnDelete" class="btn danger ghost hidden">刪除</button>
@@ -106,13 +81,9 @@
   </div>
 </div>
 
-<!-- ============ Detail / share modal ============ -->
 <div id="detailModal" class="modal hidden">
   <div class="modal-card">
-    <div class="modal-head">
-      <h3 id="d_name">名片</h3>
-      <button class="icon-btn close" data-close>✕</button>
-    </div>
+    <div class="modal-head"><h3 id="d_name">名片</h3><button class="icon-btn close" data-close>✕</button></div>
     <div class="modal-body">
       <div id="detailBody" class="detail-body"></div>
       <div id="qrWrap" class="qr-wrap"><canvas id="qrCanvas"></canvas><small>掃描存入通訊錄</small></div>
@@ -126,7 +97,6 @@
   </div>
 </div>
 
-<!-- ============ Export sheet ============ -->
 <div id="exportModal" class="modal hidden">
   <div class="modal-card sm">
     <div class="modal-head"><h3>匯出名單</h3><button class="icon-btn close" data-close>✕</button></div>

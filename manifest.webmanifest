@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0e1a",
-  "theme_color": "#0a0e1a",
+  "background_color": "#070f12",
+  "theme_color": "#070f12",
   "lang": "zh-Hant",
   "categories": ["productivity", "business", "utilities"],
   "icons": [
