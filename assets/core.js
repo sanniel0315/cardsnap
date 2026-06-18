@@ -13,7 +13,7 @@
   function parseCard(raw) {
     const lines = String(raw || '').split('\n').map(l => l.trim()).filter(Boolean);
     const flat = lines.join(' ');
-    const out = { name: '', company: '', title: '', phone: '', email: '', website: '', address: '' };
+    const out = { name: '', company: '', title: '', phone: '', phones: [], fax: '', taxId: '', email: '', website: '', address: '' };
 
     const em = flat.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
     if (em) out.email = em[0].replace(/[，。、]$/, '');
@@ -22,9 +22,35 @@
               || flat.match(/\b[\w-]+\.(?:com|net|org|io|co|tw|cn)(?:\.[a-z]{2})?\b/i);
     if (web && (!em || !em[0].includes(web[0]))) out.website = web[0];
 
-    const phones = flat.match(/(?:\+?\d[\d\s().-]{6,}\d)/g) || [];
-    const phone = phones.map(p => p.trim()).find(p => p.replace(/\D/g, '').length >= 8);
-    if (phone) out.phone = phone;
+    // 統一編號(台灣 8 碼)— 先抓出來,避免被當成電話
+    const taxM = flat.match(/(?:統一編號|統一編|統編|GUI|VAT)\D{0,5}(\d{8})/i);
+    out.taxId = taxM ? taxM[1] : '';
+
+    // 電話 / 傳真:逐行判斷標籤,自動分類手機 / 市話 / 傳真
+    const classify = (num) => {
+      const d = num.replace(/\D/g, '');
+      if (/^09\d{8}$/.test(d) || /^8869\d{8}$/.test(d) || /^09/.test(d)) return '手機';
+      return '市話';
+    };
+    const phoneList = [];
+    let fax = '';
+    const seen = new Set();
+    for (const l of lines) {
+      const nums = l.match(/\+?\d[\d\s().\-]{5,}\d/g) || [];
+      for (const raw of nums) {
+        const num = raw.trim();
+        const d = num.replace(/\D/g, '');
+        if (d.length < 8 || d.length > 15) continue;
+        if (out.taxId && d === out.taxId) continue;     // 統編不是電話
+        if (seen.has(d)) continue; seen.add(d);
+        if (/(fax|傳真|傳\s*真)/i.test(l)) { if (!fax) fax = num; continue; }
+        phoneList.push({ label: classify(num), value: num });
+      }
+    }
+    out.fax = fax;
+    out.phones = phoneList;
+    const primary = (phoneList.find(p => p.label === '手機') || phoneList[0] || {}).value || '';
+    if (primary) out.phone = primary;
 
     const titleKw = /(經理|總監|協理|執行長|董事|總經理|主任|工程師|設計師|顧問|專員|業務|處長|課長|副理|襄理|創辦|負責人|CEO|CTO|CFO|COO|Manager|Director|Engineer|Designer|Founder|President|Sales|Consultant|Lead|Head)/i;
     const compKw = /(股份有限公司|有限公司|企業|科技|工作室|事務所|集團|實業|國際|Inc\.?|Ltd\.?|LLC|Corp\.?|Company|Co\.,?|Technolog|Studio|Group)/i;
@@ -54,6 +80,8 @@
     if (c.company) L.push(`ORG:${c.company}`);
     if (c.title) L.push(`TITLE:${c.title}`);
     if (c.phone) L.push(`TEL;TYPE=CELL:${c.phone}`);
+    if (Array.isArray(c.phones)) c.phones.slice(1).forEach(p => { if (p && p.value) L.push(`TEL;TYPE=${p.label === '市話' ? 'WORK' : 'VOICE'}:${p.value}`); });
+    if (c.fax) L.push(`TEL;TYPE=FAX:${c.fax}`);
     if (c.email) L.push(`EMAIL:${c.email}`);
     if (c.website) L.push(`URL:${c.website}`);
     if (c.address) L.push(`ADR;TYPE=WORK:;;${c.address};;;;`);
@@ -62,8 +90,8 @@
     return L.join('\n');
   }
 
-  const COLS = ['name', 'company', 'title', 'phone', 'email', 'website', 'address', 'tags', 'note'];
-  const HEAD = ['姓名', '公司', '職稱', '電話', 'Email', '網站', '地址', '標籤', '備註'];
+  const COLS = ['name', 'company', 'title', 'phone', 'email', 'website', 'address', 'tags', 'note', 'taxId', 'fax'];
+  const HEAD = ['姓名', '公司', '職稱', '電話', 'Email', '網站', '地址', '標籤', '備註', '統一編號', '傳真'];
 
   function toCSV(contacts) {
     const list = Array.isArray(contacts) ? contacts : [];
@@ -100,7 +128,7 @@
     if (!rows.length) return [];
     const HMAP = {
       '姓名': 'name', '公司': 'company', '職稱': 'title', '電話': 'phone', 'Email': 'email', 'email': 'email',
-      '網站': 'website', '地址': 'address', '標籤': 'tags', '備註': 'note',
+      '網站': 'website', '地址': 'address', '標籤': 'tags', '備註': 'note', '統一編號': 'taxId', '傳真': 'fax', 'taxId': 'taxId', 'fax': 'fax',
       'name': 'name', 'company': 'company', 'title': 'title', 'phone': 'phone', 'website': 'website',
       'address': 'address', 'tags': 'tags', 'note': 'note'
     };

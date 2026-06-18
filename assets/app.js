@@ -92,6 +92,25 @@ function loadImage(url) {
   return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
 }
 
+/* OCR 前處理:放大 + 灰階 + 對比拉伸,提高辨識率 */
+function preprocess(src) {
+  const sw = src.width || src.videoWidth || src.naturalWidth;
+  const sh = src.height || src.videoHeight || src.naturalHeight;
+  if (!sw || !sh) return src;
+  const scale = Math.min(2.5, Math.max(1, 1600 / Math.max(sw, sh)));
+  const cw = Math.round(sw * scale), ch = Math.round(sh * scale);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(src, 0, 0, cw, ch);
+  let id; try { id = ctx.getImageData(0, 0, cw, ch); } catch (e) { return c; }
+  const d = id.data; let sum = 0;
+  for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = d[i + 1] = d[i + 2] = g; sum += g; }
+  const mean = sum / (d.length / 4), k = 1.35;
+  for (let i = 0; i < d.length; i += 4) { let v = (d[i] - mean) * k + mean; v = v < 0 ? 0 : v > 255 ? 255 : v; d[i] = d[i + 1] = d[i + 2] = v; }
+  ctx.putImageData(id, 0, 0);
+  return c;
+}
+
 /* ============================================================
    擷取流程:相機/連拍/重拍 → 掃描互動 → OCR
    ============================================================ */
@@ -246,7 +265,9 @@ async function recognize(source, previewUrl) {
   $('#ocrText').textContent = '辨識中…';
   try {
     if (typeof Tesseract === 'undefined') throw new Error('OCR 引擎尚未載入,請檢查網路');
-    const { data } = await Tesseract.recognize(source, settings.ocrLang || 'chi_tra+eng', {
+    let ocrSrc = source;
+    try { if (typeof source === 'string') ocrSrc = await loadImage(source); ocrSrc = preprocess(ocrSrc); } catch (e) { ocrSrc = source; }
+    const { data } = await Tesseract.recognize(ocrSrc, settings.ocrLang || 'chi_tra+eng', {
       logger: m => {
         if (m.status === 'recognizing text')
           $('#ocrText').textContent = `辨識中… ${Math.round(m.progress * 100)}%`;
@@ -503,6 +524,8 @@ function openEdit(id, fields, raw) {
   $('#f_address').value = c.address || '';
   $('#groupList').innerHTML = allGroups().map(g => `<option value="${esc(g)}">`).join('');
   $('#f_group').value = c.group || '';
+  $('#f_taxId').value = c.taxId || '';
+  $('#f_fax').value = c.fax || '';
   $('#f_tags').value = (c.tags || []).join(', ');
   $('#f_note').value = c.note || '';
   $('#rawText').textContent = raw || c.raw || '(無)';
@@ -521,6 +544,8 @@ function saveEdit() {
     email: $('#f_email').value.trim(),
     website: $('#f_website').value.trim(),
     address: $('#f_address').value.trim(),
+    fax: $('#f_fax').value.trim(),
+    taxId: $('#f_taxId').value.trim(),
     group: $('#f_group').value.trim(),
     tags: $('#f_tags').value.split(',').map(t => t.trim()).filter(Boolean),
     note: $('#f_note').value.trim(),
@@ -586,6 +611,8 @@ function openDetail(id) {
       `<span class="dc-val"><a href="tel:${esc(p.value)}">${esc(p.value)}</a></span>` +
       `<span class="dc-row-acts"><a href="tel:${esc(p.value)}" title="撥打">${ICON_CALL_SM}</a><a href="sms:${esc(p.value)}" title="簡訊">${ICON_SMS}</a></span></div>`);
   });
+  if (c.fax) rows.push(`<div class="dc-row"><span class="dc-label">傳真</span><span class="dc-val">${esc(c.fax)}</span></div>`);
+  if (c.taxId) rows.push(`<div class="dc-row"><span class="dc-label">統編</span><span class="dc-val">${esc(c.taxId)}</span></div>`);
   if (c.email) rows.push(`<div class="dc-row"><span class="dc-label">Email</span><span class="dc-val"><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></span></div>`);
   if (c.website) { const w = /^https?:/.test(c.website) ? c.website : 'https://' + c.website; rows.push(`<div class="dc-row"><span class="dc-label">網站</span><span class="dc-val"><a href="${esc(w)}" target="_blank" rel="noopener">${esc(c.website)}</a></span></div>`); }
   if (c.address) rows.push(`<div class="dc-row"><span class="dc-label">地址</span><span class="dc-val"><a href="${mapsHref(c.address)}" target="_blank" rel="noopener">${esc(c.address)}</a></span></div>`);

@@ -139,3 +139,39 @@ test('syncMerge:兩端聯集,同鍵取較新(updated 大者)', () => {
   const wang = r.find(x => x.email === 'a@b.com');
   assert.equal(wang.name, '王-新');
 });
+
+/* ---------- OCR 解析增強:統編 / 傳真 / 多電話分類 ---------- */
+test('parseCard:抓出統一編號,且不把統編當電話', () => {
+  const raw = [
+    '陳胤儒',
+    '連益系統工程有限公司',
+    '0912-133-511',
+    'Tel 02-22542920',
+    'Fax 02-81927003',
+    '統編 54985723',
+  ].join('\n');
+  const r = parseCard(raw);
+  assert.equal(r.taxId, '54985723');
+  assert.equal(r.fax.replace(/\D/g, ''), '0281927003');
+  assert.ok(!r.phones.some(p => p.value.replace(/\D/g, '') === '54985723'), '統編不應出現在電話');
+});
+
+test('parseCard:多支電話自動分手機/市話,主電話取手機', () => {
+  const r = parseCard('王小明\n手機 0912-345-678\n電話 02-2345-6789');
+  const mobile = r.phones.find(p => p.label === '手機');
+  const land = r.phones.find(p => p.label === '市話');
+  assert.ok(mobile && mobile.value.replace(/\D/g, '') === '0912345678');
+  assert.ok(land && land.value.replace(/\D/g, '') === '0223456789');
+  assert.equal(r.phone.replace(/\D/g, ''), '0912345678'); // 主電話優先手機
+});
+
+test('parseCard:傳真行不會被當成電話', () => {
+  const r = parseCard('Acme\n傳真 03-1234567\n手機 0922000111');
+  assert.equal(r.fax.replace(/\D/g, ''), '031234567');
+  assert.ok(!r.phones.some(p => p.value.replace(/\D/g, '') === '031234567'));
+});
+
+test('toVCard:有傳真時輸出 FAX 行', () => {
+  const v = toVCard({ name: 'A', phone: '0912', fax: '02-1234567' });
+  assert.match(v, /TEL;TYPE=FAX:02-1234567/);
+});
