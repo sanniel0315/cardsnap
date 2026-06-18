@@ -58,7 +58,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '' };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -92,6 +92,42 @@ function compressImage(source, max = 460, q = 0.6) {
 }
 function loadImage(url) {
   return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
+}
+
+/* 雲端 OCR(Google Vision 代理) */
+const CLOUD_OCR_URL = '/.netlify/functions/ocr';
+const OCR_LANG_HINTS = {
+  'chi_tra+eng': ['zh-Hant', 'en'], 'chi_sim+eng': ['zh-Hans', 'en'],
+  'eng': ['en'], 'jpn+eng': ['ja', 'en'],
+};
+let cloudOcrDown = false;   // 此次 session 已知雲端不可用 → 不再嘗試,直接本機
+async function srcToBase64(source, max = 1600, q = 0.85) {
+  let img = source;
+  if (typeof source === 'string') img = await loadImage(source);
+  const sw = img.width || img.videoWidth || img.naturalWidth;
+  const sh = img.height || img.videoHeight || img.naturalHeight;
+  const scale = Math.min(1, max / Math.max(sw, sh || 1));
+  const cw = Math.max(1, Math.round(sw * scale)), ch = Math.max(1, Math.round(sh * scale));
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+  return c.toDataURL('image/jpeg', q).split(',')[1];
+}
+async function cloudOCR(source) {
+  const b64 = await srcToBase64(source);
+  const langHints = OCR_LANG_HINTS[settings.ocrLang] || ['zh-Hant', 'en'];
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 25000);
+  try {
+    const r = await fetch(CLOUD_OCR_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: b64, langHints }), signal: ctrl ? ctrl.signal : undefined,
+    });
+    if (r.status === 404 || r.status === 501) { cloudOcrDown = true; const j = await r.json().catch(() => ({})); throw new Error(j.error || '雲端未設定'); }
+    if (!r.ok) throw new Error('雲端 ' + r.status);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    return (j.text || '').trim();
+  } finally { clearTimeout(killer); }
 }
 
 /* OCR 前處理:放大 + 灰階 + 對比拉伸,提高辨識率 */
@@ -266,18 +302,32 @@ async function recognize(source, previewUrl) {
   $('#ocrStatus').classList.remove('hidden');
   $('#ocrText').textContent = '辨識中…';
   try {
-    if (typeof Tesseract === 'undefined') throw new Error('OCR 引擎尚未載入,請檢查網路');
-    let ocrSrc = source;
-    try { if (typeof source === 'string') ocrSrc = await loadImage(source); ocrSrc = preprocess(ocrSrc); } catch (e) { ocrSrc = source; }
-    const { data } = await Tesseract.recognize(ocrSrc, settings.ocrLang || 'chi_tra+eng', {
-      logger: m => {
-        if (m.status === 'recognizing text')
-          $('#ocrText').textContent = `辨識中… ${Math.round(m.progress * 100)}%`;
-        else
-          $('#ocrText').textContent = m.status === 'loading language traineddata' ? '載入語言模型…' : '處理中…';
+    let text = null;
+    // 1) 雲端高精準(若啟用且可用)
+    if (settings.cloudOcr !== false && !cloudOcrDown) {
+      try { $('#ocrText').textContent = '雲端高精準辨識中…'; text = await cloudOCR(source); }
+      catch (e) {
+        text = null;
+        if (cloudOcrDown) toast('雲端辨識尚未設定,改用本機辨識');
+        else toast('雲端辨識失敗,改用本機辨識');
       }
-    });
-    lastOcrRaw = (data.text || '').trim();
+    }
+    // 2) 本機 Tesseract 後備
+    if (text === null) {
+      if (typeof Tesseract === 'undefined') throw new Error('OCR 引擎尚未載入,請檢查網路');
+      let ocrSrc = source;
+      try { if (typeof source === 'string') ocrSrc = await loadImage(source); ocrSrc = preprocess(ocrSrc); } catch (e) { ocrSrc = source; }
+      const { data } = await Tesseract.recognize(ocrSrc, settings.ocrLang || 'chi_tra+eng', {
+        logger: m => {
+          if (m.status === 'recognizing text')
+            $('#ocrText').textContent = `辨識中… ${Math.round(m.progress * 100)}%`;
+          else
+            $('#ocrText').textContent = m.status === 'loading language traineddata' ? '載入語言模型…' : '處理中…';
+        }
+      });
+      text = (data.text || '').trim();
+    }
+    lastOcrRaw = text;
     $('#scanStage').classList.add('done');
     $('#ocrText').textContent = '辨識完成';
     await new Promise(r => setTimeout(r, 420));
@@ -912,6 +962,7 @@ function openSettings() {
   $('#set_ocr').value = settings.ocrLang;
   $('#set_font').value = settings.fontSize || 'md';
   $('#set_lock').checked = !!settings.pinHash;
+  $('#set_cloud').checked = settings.cloudOcr !== false;
   updateStorage();
   openModal('#settingsModal');
 }
@@ -920,6 +971,7 @@ function applySettings() {
   settings.listMain = $('#set_listmain').value;
   settings.ocrLang = $('#set_ocr').value;
   settings.fontSize = $('#set_font').value;
+  settings.cloudOcr = $('#set_cloud').checked;
   saveSettings();
   applyFontSize();
   sortBy = settings.sortBy;

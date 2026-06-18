@@ -3,6 +3,13 @@
   publish = "."
   command = ""
 
+[build.environment]
+  NODE_VERSION = "18"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # SPA 不需要;單頁直接服務。基本安全標頭:
 [[headers]]
   for = "/*"
