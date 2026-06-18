@@ -685,6 +685,8 @@ const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 let driveToken = '';
 let driveTokenClient = null;
 let drivePushT = null;
+let syncing = false;     // 防重入:同步進行中
+let syncSignal = null;   // 逾時中止用
 
 function googleClientId() {
   return (window.CARDSNAP_CONFIG && window.CARDSNAP_CONFIG.googleClientId) || '';
@@ -719,7 +721,7 @@ function signInAndSync() {
 }
 
 async function driveApi(url, opts) {
-  const r = await fetch(url, Object.assign({ headers: { Authorization: 'Bearer ' + driveToken } }, opts || {}));
+  const r = await fetch(url, Object.assign({ headers: { Authorization: 'Bearer ' + driveToken }, signal: syncSignal }, opts || {}));
   if (r.status === 401) { driveToken = ''; throw new Error('授權過期,請再按一次同步'); }
   if (!r.ok) throw new Error('Drive 錯誤 ' + r.status);
   return r;
@@ -727,7 +729,12 @@ async function driveApi(url, opts) {
 
 async function doSync() {
   if (!driveToken) { signInAndSync(); return; }
+  if (syncing) return;                    // 已在同步,避免重疊讓 icon 卡住
+  syncing = true;
   setSyncState('syncing');
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  syncSignal = ctrl ? ctrl.signal : null;
+  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 20000);  // 20s 逾時
   try {
     const q = encodeURIComponent("name='cardsnap.json'");
     const lr = await driveApi(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`);
@@ -753,7 +760,12 @@ async function doSync() {
     }
     setSyncState('synced'); markSynced(); toast('已與 Google Drive 同步');
   } catch (e) {
-    setSyncState('idle'); toast('同步失敗:' + e.message);
+    setSyncState('idle');
+    toast(e && e.name === 'AbortError' ? '同步逾時,請檢查網路後再試一次' : ('同步失敗:' + (e && e.message ? e.message : e)));
+  } finally {
+    clearTimeout(killer);
+    syncSignal = null;
+    syncing = false;                       // 一定還原,spinner 不會卡住
   }
 }
 
