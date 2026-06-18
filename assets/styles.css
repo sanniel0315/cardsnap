@@ -270,3 +270,7 @@ body.select-mode .fab{display:none}
 /* 雲端同步按鈕狀態 */
 .icon-btn.syncing svg{animation:spin .9s linear infinite}
 .icon-btn.synced{color:var(--accent);border-color:var(--accent-ring)}
+
+/* 雲端同步狀態列 */
+.sync-status{font-size:12px;color:var(--accent);background:var(--accent-soft);
+  border:1px solid rgba(13,148,136,.22);border-radius:999px;padding:3px 11px;white-space:nowrap;letter-spacing:.2px}

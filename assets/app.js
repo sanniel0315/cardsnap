@@ -529,7 +529,7 @@ async function doSync() {
       const dj = await dr.json().catch(() => ({}));
       remote = Array.isArray(dj) ? dj : (dj.contacts || []);
     }
-    contacts = syncMerge(contacts, remote); save(); render();
+    contacts = syncMerge(contacts, remote); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
     const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts });
     if (file) {
       await driveApi(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`,
@@ -541,7 +541,7 @@ async function doSync() {
       form.append('file', new Blob([body], { type: 'application/json' }));
       await driveApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', body: form });
     }
-    setSyncState('synced'); toast('已與 Google Drive 同步');
+    setSyncState('synced'); markSynced(); toast('已與 Google Drive 同步');
   } catch (e) {
     setSyncState('idle'); toast('同步失敗:' + e.message);
   }
@@ -551,6 +551,29 @@ function schedulePush() {
   if (!driveToken) return;
   clearTimeout(drivePushT);
   drivePushT = setTimeout(doSync, 2500);
+}
+
+function fmtSyncTime(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  return (sameDay ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + hh + ':' + mm;
+}
+function showSyncStatus(ts) {
+  const el = $('#syncStatus'); if (!el) return;
+  el.textContent = '雲端已連結 · 上次同步 ' + fmtSyncTime(ts);
+  el.classList.remove('hidden');
+}
+function markSynced() {
+  const t = Date.now();
+  try { localStorage.setItem('cardsnap.lastSync', String(t)); } catch (e) {}
+  showSyncStatus(t);
+}
+function initSyncStatus() {
+  const v = localStorage.getItem('cardsnap.lastSync');
+  if (v) showSyncStatus(Number(v));
 }
 
 /* ============================================================
@@ -643,3 +666,4 @@ if ('serviceWorker' in navigator) {
 bind();
 render();
 initDrive();
+initSyncStatus();
