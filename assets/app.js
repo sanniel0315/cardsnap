@@ -58,7 +58,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: '' };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: '', drivePhotos: true };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -837,10 +837,11 @@ async function shareContact(c) {
 /* ============================================================
    Google Drive 同步(存於使用者自己的 Drive · appDataFolder)
    ============================================================ */
-const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file';
 let driveToken = '';
 let driveTokenClient = null;
 let drivePushT = null;
+let driveFolderId = '';   // Drive 可見資料夾「CardSnap 名片」id
 let syncing = false;     // 防重入:同步進行中
 let syncSignal = null;   // 逾時中止用
 
@@ -883,6 +884,44 @@ async function driveApi(url, opts) {
   return r;
 }
 
+const DRIVE_FOLDER_NAME = 'CardSnap 名片';
+async function ensureDriveFolder() {
+  if (driveFolderId) return driveFolderId;
+  const q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${DRIVE_FOLDER_NAME}' and trashed=false`);
+  const lr = await driveApi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+  const lj = await lr.json();
+  if (lj.files && lj.files[0]) { driveFolderId = lj.files[0].id; return driveFolderId; }
+  const meta = { name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' };
+  const cr = await driveApi('https://www.googleapis.com/drive/v3/files?fields=id',
+    { method: 'POST', headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' }, body: JSON.stringify(meta) });
+  const cj = await cr.json(); driveFolderId = cj.id; return driveFolderId;
+}
+async function driveUploadImage(dataUrl, name, folderId) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const meta = { name, parents: [folderId] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  form.append('file', blob);
+  const r = await driveApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
+  const j = await r.json(); return j.id;
+}
+// 把尚未上傳的名片照片放進 Drive 可見資料夾(盡力而為,失敗不影響資料同步)
+async function pushPhotosToDrive() {
+  if (settings.drivePhotos === false) return;
+  try {
+    const folder = await ensureDriveFolder();
+    let n = 0;
+    for (const c of contacts) {
+      const img = (c.images && c.images[0]) || c.image;
+      if (img && !c.drivePhoto) {
+        try { c.drivePhoto = await driveUploadImage(img, (c.name || 'card') + '-' + c.id + '.jpg', folder); n++; }
+        catch (e) { /* 略過這張 */ }
+        if (n >= 20) break;   // 單次上限,避免太久
+      }
+    }
+  } catch (e) { /* 資料夾/scope 失敗 → 略過 */ }
+}
+
 async function doSync() {
   if (!driveToken) { signInAndSync(); return; }
   if (syncing) return;                    // 已在同步,避免重疊讓 icon 卡住
@@ -903,6 +942,7 @@ async function doSync() {
       remote = Array.isArray(dj) ? dj : (dj.contacts || []);
     }
     contacts = syncMerge(contacts, remote); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
+    await pushPhotosToDrive();   // 上傳照片到可見資料夾,id 寫回 contacts 一併存
     const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts });
     if (file) {
       await driveApi(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`,
@@ -987,6 +1027,7 @@ function openSettings() {
   $('#set_lock').checked = !!settings.pinHash;
   $('#set_cloud').checked = settings.cloudOcr !== false;
   $('#set_endpoint').value = settings.ocrEndpoint || '';
+  $('#set_drivephotos').checked = settings.drivePhotos !== false;
   updateStorage();
   openModal('#settingsModal');
 }
@@ -997,6 +1038,7 @@ function applySettings() {
   settings.fontSize = $('#set_font').value;
   settings.cloudOcr = $('#set_cloud').checked;
   settings.ocrEndpoint = $('#set_endpoint').value.trim();
+  settings.drivePhotos = $('#set_drivephotos').checked;
   cloudOcrDown = false;
   saveSettings();
   applyFontSize();
