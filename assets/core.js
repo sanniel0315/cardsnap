@@ -168,7 +168,22 @@
     return { merged: base, added, skipped };
   }
 
-  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey };
+  /* ---------- 雙向同步合併:聯集去重,較新者勝 ---------- */
+  function syncMerge(local, remote) {
+    const map = new Map();
+    const put = c => {
+      const k = contactKey(c);
+      const ex = map.get(k);
+      const t = (c.updated || c.created || 0);
+      const te = ex ? (ex.updated || ex.created || 0) : -1;
+      if (!ex || t >= te) map.set(k, c);
+    };
+    (Array.isArray(local) ? local : []).forEach(put);
+    (Array.isArray(remote) ? remote : []).forEach(put);
+    return [...map.values()].sort((a, b) => (b.created || 0) - (a.created || 0));
+  }
+
+  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CardSnapCore = api;
 })(typeof self !== 'undefined' ? self : this);

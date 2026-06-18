@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = 'cardsnap.contacts.v1';
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -36,6 +36,7 @@ function load() {
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); }
   catch (e) { toast('儲存空間已滿,請刪除部分名片或關閉照片'); }
+  if (typeof schedulePush === 'function') schedulePush();
 }
 
 /* ---------- 影像壓縮(縮圖) ---------- */
@@ -147,7 +148,7 @@ async function recognize(source, previewUrl) {
     // 連拍模式:自動建檔,回到相機繼續
     if (burstMode) {
       if (fields.name || fields.company || fields.phone || fields.email) {
-        contacts.unshift({ id: uid(), created: Date.now(), favorite: false, raw: lastOcrRaw, image: lastImage, ...fields });
+        contacts.unshift({ id: uid(), created: Date.now(), updated: Date.now(), favorite: false, raw: lastOcrRaw, image: lastImage, ...fields });
         save(); render(); burstCount++;
         $('#burstCount').textContent = `已建 ${burstCount} 張`;
         toast(`已建檔(${burstCount})`);
@@ -211,7 +212,7 @@ async function importFromFile(file) {
     }
     if (!parsed.length) { toast('檔案沒有可匯入的名片'); return; }
     const incoming = parsed.map(p => ({
-      id: p.id || uid(), created: p.created || Date.now(), favorite: !!p.favorite, image: p.image || '',
+      id: p.id || uid(), created: p.created || Date.now(), updated: p.updated || p.created || Date.now(), favorite: !!p.favorite, image: p.image || '',
       name: p.name || '', company: p.company || '', title: p.title || '', phone: p.phone || '',
       email: p.email || '', website: p.website || '', address: p.address || '',
       tags: Array.isArray(p.tags) ? p.tags : (p.tags ? String(p.tags).split(/[;,，、]/).map(t => t.trim()).filter(Boolean) : []),
@@ -368,6 +369,7 @@ function saveEdit() {
     address: $('#f_address').value.trim(),
     tags: $('#f_tags').value.split(',').map(t => t.trim()).filter(Boolean),
     note: $('#f_note').value.trim(),
+    updated: Date.now(),
   };
   if (!data.name && !data.company && !data.phone && !data.email) {
     toast('至少填入姓名、公司、電話或 email 其中之一'); return;
@@ -467,6 +469,91 @@ async function shareContact(c) {
 }
 
 /* ============================================================
+   Google Drive 同步(存於使用者自己的 Drive · appDataFolder)
+   ============================================================ */
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+let driveToken = '';
+let driveTokenClient = null;
+let drivePushT = null;
+
+function googleClientId() {
+  return (window.CARDSNAP_CONFIG && window.CARDSNAP_CONFIG.googleClientId) || '';
+}
+
+function setSyncState(s) {
+  const b = $('#btnSync'); if (!b) return;
+  b.classList.toggle('syncing', s === 'syncing');
+  b.classList.toggle('synced', s === 'synced');
+  b.title = s === 'syncing' ? '同步中…' : (s === 'synced' ? '已同步' : (googleClientId() ? '雲端同步' : '雲端同步(尚未設定)'));
+}
+
+function initDrive() {
+  if (!googleClientId()) { setSyncState('idle'); return; }
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) { setTimeout(initDrive, 600); return; }
+  driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: googleClientId(),
+    scope: GOOGLE_SCOPE,
+    callback: (resp) => {
+      if (resp && resp.access_token) { driveToken = resp.access_token; doSync(); }
+      else { setSyncState('idle'); toast('Google 授權未完成'); }
+    },
+  });
+  setSyncState('idle');
+}
+
+function signInAndSync() {
+  if (!googleClientId()) { toast('雲端同步尚未設定(需填入 Google Client ID)'); return; }
+  if (!driveTokenClient) { initDrive(); toast('同步初始化中,請再按一次'); return; }
+  if (driveToken) doSync();
+  else driveTokenClient.requestAccessToken({ prompt: '' });
+}
+
+async function driveApi(url, opts) {
+  const r = await fetch(url, Object.assign({ headers: { Authorization: 'Bearer ' + driveToken } }, opts || {}));
+  if (r.status === 401) { driveToken = ''; throw new Error('授權過期,請再按一次同步'); }
+  if (!r.ok) throw new Error('Drive 錯誤 ' + r.status);
+  return r;
+}
+
+async function doSync() {
+  if (!driveToken) { signInAndSync(); return; }
+  setSyncState('syncing');
+  try {
+    const q = encodeURIComponent("name='cardsnap.json'");
+    const lr = await driveApi(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`);
+    const lj = await lr.json();
+    const file = (lj.files || [])[0];
+    let remote = [];
+    if (file) {
+      const dr = await driveApi(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`);
+      const dj = await dr.json().catch(() => ({}));
+      remote = Array.isArray(dj) ? dj : (dj.contacts || []);
+    }
+    contacts = syncMerge(contacts, remote); save(); render();
+    const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts });
+    if (file) {
+      await driveApi(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`,
+        { method: 'PATCH', headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' }, body });
+    } else {
+      const meta = { name: 'cardsnap.json', parents: ['appDataFolder'] };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file', new Blob([body], { type: 'application/json' }));
+      await driveApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', body: form });
+    }
+    setSyncState('synced'); toast('已與 Google Drive 同步');
+  } catch (e) {
+    setSyncState('idle'); toast('同步失敗:' + e.message);
+  }
+}
+
+function schedulePush() {
+  if (!driveToken) return;
+  clearTimeout(drivePushT);
+  drivePushT = setTimeout(doSync, 2500);
+}
+
+/* ============================================================
    UI helpers
    ============================================================ */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
@@ -540,6 +627,9 @@ function bind() {
   $('#selDelete').onclick = batchDelete;
   $('#selDone').onclick = exitSelect;
 
+  // 雲端同步
+  $('#btnSync').onclick = signInAndSync;
+
   // Esc 關閉
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('.modal:not(.hidden)').forEach(m => closeModal('#' + m.id)); });
 }
@@ -552,3 +642,4 @@ if ('serviceWorker' in navigator) {
 /* ---------- init ---------- */
 bind();
 render();
+initDrive();

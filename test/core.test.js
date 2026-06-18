@@ -127,3 +127,15 @@ test('mergeContacts:無 email/phone 時以 姓名+公司 為鍵', () => {
   assert.equal(res.added, 1);
   assert.equal(res.skipped, 1);
 });
+
+test('syncMerge:兩端聯集,同鍵取較新(updated 大者)', () => {
+  const local = [{ name: '王', email: 'a@b.com', updated: 100, created: 100 }];
+  const remote = [
+    { name: '王-新', email: 'a@b.com', updated: 200, created: 100 }, // 同 email,較新 → 勝
+    { name: '李', email: 'c@d.com', updated: 50, created: 50 },       // 新增
+  ];
+  const r = core.syncMerge(local, remote);
+  assert.equal(r.length, 2);
+  const wang = r.find(x => x.email === 'a@b.com');
+  assert.equal(wang.name, '王-新');
+});
