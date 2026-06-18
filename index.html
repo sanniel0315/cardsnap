@@ -54,6 +54,7 @@
       <option value="name">依姓名</option>
       <option value="company">依公司</option>
     </select>
+    <button id="btnSelect" class="link-btn select-btn">選取</button>
   </div>
 
   <main id="list" class="list"></main>
@@ -85,6 +86,8 @@
 
       <div id="cameraView" class="camera-view hidden">
         <video id="cameraVideo" playsinline autoplay muted></video>
+        <button id="burstToggle" class="burst-toggle" type="button">連拍</button>
+        <span id="burstCount" class="burst-count hidden">已建 0 張</span>
         <div class="cam-frame">
           <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
           <div class="scanline"></div>
@@ -158,6 +161,7 @@
     </div>
     <div class="modal-foot">
       <button id="btnEdit" class="btn ghost">編輯</button>
+      <button id="btnRecapture" class="btn ghost">重拍</button>
       <span style="flex:1"></span>
       <button id="btnVcard" class="btn ghost">vCard</button>
       <button id="btnShare" class="btn primary">分享</button>
@@ -185,6 +189,15 @@
       </div>
     </div>
   </div>
+</div>
+
+<div id="selectBar" class="select-bar hidden">
+  <button id="selAll" class="sb-btn">全選</button>
+  <span id="selCount" class="sb-count">已選 0</span>
+  <button id="selTag" class="sb-btn">加標籤</button>
+  <button id="selExport" class="sb-btn">匯出</button>
+  <button id="selDelete" class="sb-btn danger">刪除</button>
+  <button id="selDone" class="sb-btn done">完成</button>
 </div>
 
 <div id="toast" class="toast hidden"></div>
