@@ -421,3 +421,6 @@ body.fs-sm .c-sub{font-size:12.5px}
 .lock-card input:focus{border-color:var(--accent-2);box-shadow:0 0 0 3px rgba(20,184,166,.3)}
 .lock-err{color:#fca5a5 !important;font-size:13px !important;margin:12px 0 0 !important}
 .lock-btn{width:100%;margin-top:18px}
+
+/* OCR 端點測試鈕 */
+.endpoint-test{align-self:flex-start;margin-top:-4px}

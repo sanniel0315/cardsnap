@@ -58,7 +58,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: '', drivePhotos: true };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: '', drivePhotos: true, forceEndpoint: false };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -321,7 +321,7 @@ async function recognize(source, previewUrl) {
   $('#ocrStatus').classList.remove('hidden');
   $('#ocrText').textContent = '辨識中…';
   try {
-    let text = null, remoteFields = null;
+    let text = null, remoteFields = null, usedEngine = '';
     const customEp = settings.ocrEndpoint && settings.ocrEndpoint.trim();
     const useRemote = customEp || (settings.cloudOcr !== false && !cloudOcrDown);
     // 1) 遠端高精準(自訂本機/GPU 伺服器 或 雲端 Vision)
@@ -330,8 +330,16 @@ async function recognize(source, previewUrl) {
         $('#ocrText').textContent = customEp ? '高精準辨識中(本機 GPU)…' : '雲端高精準辨識中…';
         const r = await remoteOCR(source);
         text = r.text; remoteFields = r.fields;
+        usedEngine = customEp ? '本機 GPU' : '雲端 Vision';
       } catch (e) {
         text = null;
+        // 只用本機:失敗就停,不退回(讓你確定有沒有走地端)
+        if (customEp && settings.forceEndpoint) {
+          toast('本機 OCR 連線失敗,已停止(設定為只用本機):' + (e && e.message ? e.message : e));
+          $('#ocrStatus').classList.add('hidden');
+          resetCapture(); startCamera();
+          return;
+        }
         toast((cloudOcrDown ? '辨識服務尚未設定' : '高精準辨識連線失敗') + ',改用本機辨識');
       }
     }
@@ -349,12 +357,14 @@ async function recognize(source, previewUrl) {
         }
       });
       text = (data.text || '').trim();
+      usedEngine = '本機 Tesseract';
     }
     lastOcrRaw = text;
     $('#scanStage').classList.add('done');
     $('#ocrText').textContent = '辨識完成';
     await new Promise(r => setTimeout(r, 420));
     const fields = remoteFields || parseCard(lastOcrRaw);
+    if (usedEngine && !burstMode) toast('辨識來源:' + usedEngine);
 
     // 連拍模式:自動建檔,回到相機繼續
     if (burstMode) {
@@ -1019,6 +1029,23 @@ function tryUnlock() {
   else { $('#lockErr').classList.remove('hidden'); $('#lockInput').value = ''; $('#lockInput').focus(); }
 }
 
+async function testEndpoint() {
+  const url = ($('#set_endpoint').value || '').trim();
+  if (!url) { toast('請先填入伺服器網址'); return; }
+  const base = url.replace(/\/ocr\/?$/, '/');
+  toast('測試連線中…');
+  try {
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const k = setTimeout(() => { if (ctrl) ctrl.abort(); }, 12000);
+    const r = await fetch(base, { signal: ctrl ? ctrl.signal : undefined });
+    clearTimeout(k);
+    const j = await r.json().catch(() => ({}));
+    if (j && j.ok) toast('連線成功 · 模型 ' + (j.model || '?'));
+    else if (r.ok) toast('已連線(但回應格式非預期)');
+    else toast('連線回應 ' + r.status);
+  } catch (e) { toast('連線失敗:' + (e && e.name === 'AbortError' ? '逾時' : (e && e.message ? e.message : e))); }
+}
+
 function openSettings() {
   $('#set_sort').value = settings.sortBy;
   $('#set_listmain').value = settings.listMain;
@@ -1028,6 +1055,7 @@ function openSettings() {
   $('#set_cloud').checked = settings.cloudOcr !== false;
   $('#set_endpoint').value = settings.ocrEndpoint || '';
   $('#set_drivephotos').checked = settings.drivePhotos !== false;
+  $('#set_force').checked = !!settings.forceEndpoint;
   updateStorage();
   openModal('#settingsModal');
 }
@@ -1039,6 +1067,7 @@ function applySettings() {
   settings.cloudOcr = $('#set_cloud').checked;
   settings.ocrEndpoint = $('#set_endpoint').value.trim();
   settings.drivePhotos = $('#set_drivephotos').checked;
+  settings.forceEndpoint = $('#set_force').checked;
   cloudOcrDown = false;
   saveSettings();
   applyFontSize();
@@ -1111,6 +1140,7 @@ function bind() {
   // 設定
   $('#btnSettings').onclick = openSettings;
   $('#setSave').onclick = applySettings;
+  $('#endpointTest').onclick = testEndpoint;
   $('#set_lock').onchange = e => {
     if (e.target.checked) {
       const p = prompt('設定 4-6 位數解鎖密碼:');

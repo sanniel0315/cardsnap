@@ -270,6 +270,11 @@
           <input id="set_cloud" type="checkbox" class="switch">
         </div>
         <label>自訂辨識伺服器網址<input id="set_endpoint" type="url" placeholder="https://xxxx.trycloudflare.com/ocr(本機 GPU,選填)"></label>
+        <button id="endpointTest" type="button" class="btn ghost sm endpoint-test">測試連線</button>
+        <div class="set-toggle">
+          <span>只用本機伺服器<small>失敗就停、不退回雲端/本機,確保走地端</small></span>
+          <input id="set_force" type="checkbox" class="switch">
+        </div>
         <div class="set-toggle">
           <span>照片同步到 Drive 資料夾<small>名片照片存到雲端硬碟「CardSnap 名片」可見資料夾</small></span>
           <input id="set_drivephotos" type="checkbox" class="switch">
