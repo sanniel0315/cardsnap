@@ -259,14 +259,44 @@
             <option value="eng">純英文</option>
             <option value="jpn+eng">日文 + 英文</option>
           </select></label>
+        <label>字體大小
+          <select id="set_font">
+            <option value="sm">小</option>
+            <option value="md">標準</option>
+            <option value="lg">大</option>
+          </select></label>
+        <div class="set-toggle">
+          <span>應用加鎖<small>開啟 App 需輸入 PIN</small></span>
+          <input id="set_lock" type="checkbox" class="switch">
+        </div>
       </div>
       <p class="muted set-hint">辨識語言會在下次拍照時套用;切換非繁中語言首次辨識需下載語言模型。</p>
+      <div class="set-storage">
+        <div class="ss-row"><span>佔用空間</span><b id="storageUsage">—</b></div>
+        <div class="ss-btns">
+          <button id="clearPhotos" class="btn ghost sm">清除所有照片</button>
+          <button id="wipeAll" class="btn danger ghost sm">清空全部資料</button>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <span style="flex:1"></span>
       <button class="btn ghost" data-close>取消</button>
       <button id="setSave" class="btn primary">儲存設定</button>
     </div>
+  </div>
+</div>
+
+<div id="lockScreen" class="lock-screen hidden">
+  <div class="lock-card">
+    <div class="lock-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+    </div>
+    <h2>CardSnap 已鎖定</h2>
+    <p>請輸入解鎖密碼</p>
+    <input id="lockInput" type="password" inputmode="numeric" autocomplete="off" placeholder="• • • •">
+    <p id="lockErr" class="lock-err hidden">密碼錯誤,請再試一次</p>
+    <button id="lockBtn" class="btn primary lock-btn">解鎖</button>
   </div>
 </div>
 

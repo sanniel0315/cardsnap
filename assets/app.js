@@ -58,7 +58,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', groupOnSave: false };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '' };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -453,7 +453,8 @@ function renderGroupSelect() {
 function render() {
   document.body.classList.toggle('select-mode', selectMode);
   const data = filtered();
-  $('#countLabel').textContent = `共 ${contacts.length} 張名片` + (activeTag ? ` · #${activeTag}` : '');
+  const _filterOn = activeTag || activeGroup !== null || query.trim();
+  $('#countLabel').textContent = `共 ${contacts.length} 張` + (_filterOn ? ` · 符合 ${data.length}` : '名片');
   renderGroupSelect();
   $('#empty').classList.toggle('hidden', contacts.length !== 0);
 
@@ -472,7 +473,7 @@ function render() {
       <div class="c-main">
         <div class="c-name">${esc(settings.listMain === 'company' ? (c.company || c.name || '未命名') : (c.name || '未命名'))} ${c.favorite ? '<span class="star">★</span>' : ''}</div>
         <div class="c-sub">${esc((settings.listMain === 'company' ? [c.name, c.title] : [c.title, c.company]).filter(Boolean).join(' · ') || c.phone || c.email || '—')}</div>
-        ${(c.tags || []).length ? `<div class="c-tags">${c.tags.map(t => `<span class="c-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        ${(c.group || (c.tags || []).length) ? `<div class="c-tags">${c.group ? `<span class="c-group">${esc(c.group)}</span>` : ''}${(c.tags || []).map(t => `<span class="c-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       </div>
       <div class="c-quick">
         ${c.phone ? `<a href="tel:${esc(c.phone)}" title="撥打" onclick="event.stopPropagation()"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3l1.3 3.2-1.7 1.2a9 9 0 0 0 3.8 3.8l1.2-1.7L16.5 14v3a1 1 0 0 1-1.1 1A12.5 12.5 0 0 1 4 6.6 1 1 0 0 1 5 3.5"/></svg></a>` : ''}
@@ -887,17 +888,40 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;
 /* ============================================================
    設定
    ============================================================ */
+function pinHash(p) { let h = 5381; const str = String(p || ''); for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) + str.charCodeAt(i); h |= 0; } return 'h' + (h >>> 0).toString(36); }
+function applyFontSize() { document.body.classList.remove('fs-sm', 'fs-md', 'fs-lg'); document.body.classList.add('fs-' + (settings.fontSize || 'md')); }
+function humanSize(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1024).toFixed(0) + ' KB'; }
+function storageBytes() {
+  let n = 0;
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf('cardsnap') === 0) n += (localStorage.getItem(k) || '').length + k.length; } } catch (e) {}
+  return n * 2; // UTF-16
+}
+function updateStorage() { const el = $('#storageUsage'); if (el) el.textContent = humanSize(storageBytes()); }
+
+/* 應用加鎖 */
+function showLock() { const ov = $('#lockScreen'); if (!ov) return; ov.classList.remove('hidden'); const i = $('#lockInput'); if (i) { i.value = ''; setTimeout(() => i.focus(), 120); } $('#lockErr').classList.add('hidden'); }
+function tryUnlock() {
+  const v = $('#lockInput').value;
+  if (pinHash(v) === settings.pinHash) { $('#lockScreen').classList.add('hidden'); }
+  else { $('#lockErr').classList.remove('hidden'); $('#lockInput').value = ''; $('#lockInput').focus(); }
+}
+
 function openSettings() {
   $('#set_sort').value = settings.sortBy;
   $('#set_listmain').value = settings.listMain;
   $('#set_ocr').value = settings.ocrLang;
+  $('#set_font').value = settings.fontSize || 'md';
+  $('#set_lock').checked = !!settings.pinHash;
+  updateStorage();
   openModal('#settingsModal');
 }
 function applySettings() {
   settings.sortBy = $('#set_sort').value;
   settings.listMain = $('#set_listmain').value;
   settings.ocrLang = $('#set_ocr').value;
+  settings.fontSize = $('#set_font').value;
   saveSettings();
+  applyFontSize();
   sortBy = settings.sortBy;
   const ss = $('#sortSelect'); if (ss) ss.value = sortBy;
   render();
@@ -967,6 +991,30 @@ function bind() {
   // 設定
   $('#btnSettings').onclick = openSettings;
   $('#setSave').onclick = applySettings;
+  $('#set_lock').onchange = e => {
+    if (e.target.checked) {
+      const p = prompt('設定 4-6 位數解鎖密碼:');
+      if (!p || !/^\d{4,6}$/.test(p)) { e.target.checked = false; toast('請輸入 4-6 位數字'); return; }
+      if (prompt('再次輸入確認:') !== p) { e.target.checked = false; toast('兩次輸入不一致'); return; }
+      settings.pinHash = pinHash(p); saveSettings(); toast('已啟用應用加鎖');
+    } else {
+      const p = prompt('輸入目前密碼以關閉加鎖:');
+      if (pinHash(p || '') !== settings.pinHash) { e.target.checked = true; toast('密碼錯誤'); return; }
+      settings.pinHash = ''; saveSettings(); toast('已關閉應用加鎖');
+    }
+  };
+  $('#clearPhotos').onclick = () => {
+    if (!confirm('清除所有名片照片?文字資料會保留。')) return;
+    contacts.forEach(c => { c.image = ''; c.images = []; });
+    save(); render(); updateStorage(); toast('已清除所有照片');
+  };
+  $('#wipeAll').onclick = () => {
+    if (!confirm('確定清空全部名片資料?此動作無法復原。')) return;
+    if (!confirm('再次確認:真的要刪除全部名片?')) return;
+    contacts = []; save(); render(); updateStorage(); toast('已清空全部資料');
+  };
+  $('#lockBtn').onclick = tryUnlock;
+  $('#lockInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 
   // 匯出 / 匯入 / 手動 / 排序
   $('#btnExport').onclick = () => { exportScope = null; $('#expCount').textContent = contacts.length; openModal('#exportModal'); };
@@ -1002,8 +1050,10 @@ if ('serviceWorker' in navigator) {
 
 /* ---------- init ---------- */
 sortBy = settings.sortBy || 'recent';
+applyFontSize();
 bind();
 { const ss = $('#sortSelect'); if (ss) ss.value = sortBy; }
 render();
+if (settings.pinHash) showLock();
 initDrive();
 initSyncStatus();
