@@ -76,3 +76,54 @@ test('toCSV：空陣列只回表頭', () => {
   const lines = csv.replace(/^﻿/, '').split('\n');
   assert.equal(lines.length, 1);
 });
+
+/* ---------- 匯入 / 去重(新功能)---------- */
+const core = require('../assets/core.js');
+
+test('parseCSV：可解析 toCSV 匯出的內容(round-trip)', () => {
+  const csv = core.toCSV([
+    { name: '王小明', company: 'ACME', title: 'PM', phone: '0912-345-678', email: 'a@b.com', website: 'b.com', address: '台北市', tags: ['展場', '客戶'], note: '備註,含逗號' },
+  ]);
+  const r = core.parseCSV(csv);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].name, '王小明');
+  assert.equal(r[0].email, 'a@b.com');
+  assert.deepEqual(r[0].tags, ['展場', '客戶']);
+  assert.equal(r[0].note, '備註,含逗號');
+});
+
+test('parseCSV：無表頭也能依欄位順序解析', () => {
+  const r = core.parseCSV('李四,某公司,工程師,0922000111,c@d.com,,,,');
+  assert.equal(r[0].name, '李四');
+  assert.equal(r[0].company, '某公司');
+  assert.equal(r[0].phone, '0922000111');
+});
+
+test('parseVCards：可解析 toVCard 產生的內容', () => {
+  const vcf = core.toVCard({ name: '陳大', company: 'Foo', phone: '0911', email: 'x@y.com' }) +
+    '\n' + core.toVCard({ name: '林二', email: 'z@y.com' });
+  const r = core.parseVCards(vcf);
+  assert.equal(r.length, 2);
+  assert.equal(r[0].name, '陳大');
+  assert.equal(r[0].company, 'Foo');
+  assert.equal(r[1].email, 'z@y.com');
+});
+
+test('mergeContacts:依 email/phone 去重,回傳新增與略過數', () => {
+  const existing = [{ name: '王', email: 'a@b.com' }, { name: '李', phone: '0912 345 678' }];
+  const incoming = [
+    { name: '王(重複)', email: 'A@b.com' },     // email 同(大小寫不敏感)→ 略過
+    { name: '李(重複)', phone: '0912-345-678' }, // phone 同(去符號)→ 略過
+    { name: '新朋友', email: 'new@x.com' },       // 新增
+  ];
+  const res = core.mergeContacts(existing, incoming);
+  assert.equal(res.added, 1);
+  assert.equal(res.skipped, 2);
+  assert.equal(res.merged.length, 3);
+});
+
+test('mergeContacts:無 email/phone 時以 姓名+公司 為鍵', () => {
+  const res = core.mergeContacts([{ name: '同名', company: 'A' }], [{ name: '同名', company: 'A' }, { name: '同名', company: 'B' }]);
+  assert.equal(res.added, 1);
+  assert.equal(res.skipped, 1);
+});

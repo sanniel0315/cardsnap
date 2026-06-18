@@ -31,6 +31,10 @@
       <button id="btnSearch" class="icon-btn" title="搜尋" aria-label="搜尋">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><path d="m14.5 14.5 3 3"/></svg>
       </button>
+      <button id="btnImport" class="icon-btn" title="匯入名單" aria-label="匯入名單">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5"/><path d="M4 16h12"/></svg>
+      </button>
+      <input id="importInput" type="file" accept=".csv,.vcf,.json,text/csv,text/vcard,application/json" hidden>
       <button id="btnExport" class="icon-btn" title="匯出名單" aria-label="匯出名單">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10m0 0 3.5-3.5M10 13 6.5 9.5"/><path d="M4 16h12"/></svg>
       </button>
@@ -45,6 +49,11 @@
   <div class="filters">
     <span class="count" id="countLabel">共 0 張名片</span>
     <div class="chips" id="tagChips"></div>
+    <select id="sortSelect" class="sort-select" aria-label="排序">
+      <option value="recent">最近加入</option>
+      <option value="name">依姓名</option>
+      <option value="company">依公司</option>
+    </select>
   </div>
 
   <main id="list" class="list"></main>
@@ -104,6 +113,7 @@
       </div>
 
       <button id="pickFallback" class="link-btn cam-switch hidden">改用相簿 / 選擇圖片</button>
+      <button id="manualAdd" class="link-btn cam-switch">手動輸入(不拍照)</button>
       <canvas id="captureCanvas" hidden></canvas>
     </div>
   </div>

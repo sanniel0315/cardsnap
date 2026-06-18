@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = 'cardsnap.contacts.v1';
-const { parseCard, toVCard, toCSV } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -20,6 +20,7 @@ let editingId = null;
 let lastOcrRaw = '';
 let detailId = null;
 let camStream = null;
+let sortBy = 'recent';
 
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
@@ -138,6 +139,43 @@ function resetCapture() {
 }
 
 /* ============================================================
+   匯入(CSV / vCard / JSON)+ 去重合併
+   ============================================================ */
+async function importFromFile(file) {
+  try {
+    const text = await file.text();
+    const fn = (file.name || '').toLowerCase();
+    let parsed = [];
+    if (fn.endsWith('.json') || /^\s*[\[{]/.test(text)) {
+      const j = JSON.parse(text); parsed = Array.isArray(j) ? j : (j.contacts || []);
+    } else if (fn.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) {
+      parsed = parseVCards(text);
+    } else {
+      parsed = parseCSV(text);
+    }
+    if (!parsed.length) { toast('檔案沒有可匯入的名片'); return; }
+    const incoming = parsed.map(p => ({
+      id: p.id || uid(), created: p.created || Date.now(), favorite: !!p.favorite,
+      name: p.name || '', company: p.company || '', title: p.title || '', phone: p.phone || '',
+      email: p.email || '', website: p.website || '', address: p.address || '',
+      tags: Array.isArray(p.tags) ? p.tags : (p.tags ? String(p.tags).split(/[;,，、]/).map(t=>t.trim()).filter(Boolean) : []),
+      note: p.note || ''
+    }));
+    const res = mergeContacts(contacts, incoming);
+    contacts = res.merged; save(); render();
+    toast(`匯入 ${res.added} 筆` + (res.skipped ? `,略過重複 ${res.skipped} 筆` : ''));
+  } catch (e) {
+    toast('匯入失敗:' + e.message);
+  }
+  $('#importInput').value = '';
+}
+
+function openManual() {
+  openEdit(null, {}, '');
+  $('#editTitle').textContent = '手動新增名片';
+}
+
+/* ============================================================
    名單渲染
    ============================================================ */
 function allTags() {
@@ -146,6 +184,11 @@ function allTags() {
   return [...s].sort();
 }
 
+const SORTERS = {
+  recent:  (a,b) => (b.favorite?1:0)-(a.favorite?1:0) || (b.created||0)-(a.created||0),
+  name:    (a,b) => (b.favorite?1:0)-(a.favorite?1:0) || String(a.name||'').localeCompare(String(b.name||''),'zh-Hant'),
+  company: (a,b) => (b.favorite?1:0)-(a.favorite?1:0) || String(a.company||'').localeCompare(String(b.company||''),'zh-Hant'),
+};
 function filtered() {
   const q = query.trim().toLowerCase();
   return contacts.filter(c => {
@@ -153,7 +196,7 @@ function filtered() {
     if (!q) return true;
     return [c.name, c.company, c.title, c.phone, c.email, c.note, ...(c.tags||[])]
       .filter(Boolean).join(' ').toLowerCase().includes(q);
-  }).sort((a,b) => (b.favorite?1:0)-(a.favorite?1:0) || (b.created||0)-(a.created||0));
+  }).sort(SORTERS[sortBy] || SORTERS.recent);
 }
 
 function initials(name) {
@@ -359,6 +402,12 @@ function bind() {
   // 匯出
   $('#btnExport').onclick = () => { $('#expCount').textContent = contacts.length; openModal('#exportModal'); };
   $$('.export-opt').forEach(b => b.onclick = () => exportData(b.dataset.fmt));
+
+  // 匯入 / 手動新增 / 排序
+  $('#btnImport').onclick = () => $('#importInput').click();
+  $('#importInput').onchange = e => { if (e.target.files[0]) importFromFile(e.target.files[0]); };
+  $('#manualAdd').onclick = () => { closeModal('#captureModal'); openManual(); };
+  $('#sortSelect').onchange = e => { sortBy = e.target.value; render(); };
 
   // Esc 關閉
   document.addEventListener('keydown', e => { if (e.key==='Escape') $$('.modal:not(.hidden)').forEach(m=>closeModal('#'+m.id)); });
