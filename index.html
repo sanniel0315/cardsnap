@@ -56,6 +56,8 @@
     <span class="count" id="countLabel">共 0 張名片</span>
     <span id="syncStatus" class="sync-status hidden"></span>
     <div class="chips" id="tagChips"></div>
+    <select id="groupSelect" class="sort-select" aria-label="分組"></select>
+    <button id="btnGroupEdit" class="link-btn hidden" title="分組改名">改名</button>
     <select id="sortSelect" class="sort-select" aria-label="排序">
       <option value="recent">最近加入</option>
       <option value="name">依姓名</option>
@@ -208,9 +210,28 @@
   <button id="selAll" class="sb-btn">全選</button>
   <span id="selCount" class="sb-count">已選 0</span>
   <button id="selTag" class="sb-btn">加標籤</button>
+  <button id="selGroup" class="sb-btn">移到分組</button>
   <button id="selExport" class="sb-btn">匯出</button>
   <button id="selDelete" class="sb-btn danger">刪除</button>
   <button id="selDone" class="sb-btn done">完成</button>
+</div>
+
+<!-- ============ Group move modal ============ -->
+<div id="groupModal" class="modal hidden">
+  <div class="modal-card sm">
+    <div class="modal-head"><h3>移動到分組</h3><button class="icon-btn close" data-close aria-label="關閉">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m5 5 10 10M15 5 5 15"/></svg></button></div>
+    <div class="modal-body">
+      <p class="muted">選擇現有分組,或輸入新分組:</p>
+      <div id="groupOptions" class="group-options"></div>
+      <label class="new-group">新分組<input id="newGroupInput" type="text" placeholder="輸入新分組名稱"></label>
+    </div>
+    <div class="modal-foot">
+      <span style="flex:1"></span>
+      <button class="btn ghost" data-close>取消</button>
+      <button id="groupApply" class="btn primary">確定</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============ Settings modal ============ -->

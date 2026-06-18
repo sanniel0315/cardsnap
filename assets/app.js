@@ -15,6 +15,8 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 /* ---------- state ---------- */
 let contacts = load();
 let activeTag = null;
+let activeGroup = null;   // null=全部, ''=未分組, 其他=分組名
+let groupTarget = null;
 let query = '';
 let editingId = null;
 let lastOcrRaw = '';
@@ -414,6 +416,7 @@ const SORTERS = {
 function filtered() {
   const q = query.trim().toLowerCase();
   return contacts.filter(c => {
+    if (activeGroup !== null) { if (activeGroup === '') { if (c.group) return false; } else if (c.group !== activeGroup) return false; }
     if (activeTag && !(c.tags || []).includes(activeTag)) return false;
     if (!q) return true;
     return [c.name, c.company, c.title, c.phone, c.email, c.note, ...(c.tags || [])]
@@ -434,10 +437,24 @@ const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_CALL_SM = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3l1.3 3.2-1.7 1.2a9 9 0 0 0 3.8 3.8l1.2-1.7L16.5 14v3a1 1 0 0 1-1.1 1A12.5 12.5 0 0 1 4 6.6 1 1 0 0 1 5 3.5"/></svg>';
 const ICON_SMS = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v6A1.5 1.5 0 0 1 15.5 13H8l-4 3v-3H4.5A1.5 1.5 0 0 1 3 11.5z"/></svg>';
 
+function renderGroupSelect() {
+  const sel = $('#groupSelect'); if (!sel) return;
+  const groups = allGroups();
+  if (activeGroup && activeGroup !== '' && !groups.includes(activeGroup)) activeGroup = null;
+  const counts = {}; contacts.forEach(c => { const g = c.group || ''; counts[g] = (counts[g] || 0) + 1; });
+  let html = `<option value="__all">全部分組 (${contacts.length})</option>`;
+  groups.forEach(g => { html += `<option value="g:${esc(g)}">${esc(g)} (${counts[g] || 0})</option>`; });
+  if (counts['']) html += `<option value="__none">未分組 (${counts['']})</option>`;
+  sel.innerHTML = html;
+  sel.value = activeGroup === null ? '__all' : (activeGroup === '' ? '__none' : 'g:' + activeGroup);
+  const eb = $('#btnGroupEdit'); if (eb) eb.classList.toggle('hidden', !(activeGroup && activeGroup !== ''));
+}
+
 function render() {
   document.body.classList.toggle('select-mode', selectMode);
   const data = filtered();
   $('#countLabel').textContent = `共 ${contacts.length} 張名片` + (activeTag ? ` · #${activeTag}` : '');
+  renderGroupSelect();
   $('#empty').classList.toggle('hidden', contacts.length !== 0);
 
   const tags = allTags();
@@ -466,6 +483,44 @@ function render() {
     if (selectMode) toggleSelect(el.dataset.id);
     else openDetail(el.dataset.id);
   });
+}
+
+/* ============================================================
+   分組管理
+   ============================================================ */
+function renameGroup(old) {
+  if (!old) return;
+  const nn = prompt(`將分組「${old}」改名為(留空=移除此分組):`, old);
+  if (nn === null) return;
+  const name = nn.trim();
+  let n = 0;
+  contacts.forEach(c => { if (c.group === old) { c.group = name; n++; } });
+  activeGroup = name || null;
+  save(); render();
+  toast(name ? `已將 ${n} 張改到「${name}」` : `已移除分組(${n} 張改為未分組)`);
+}
+function openGroupModal() {
+  if (!selected.size) { toast('尚未選取'); return; }
+  groupTarget = null;
+  const wrap = $('#groupOptions');
+  wrap.innerHTML = `<button class="grp-chip" data-g="__none">未分組</button>` +
+    allGroups().map(g => `<button class="grp-chip" data-g="${esc(g)}">${esc(g)}</button>`).join('');
+  $$('#groupOptions .grp-chip').forEach(b => b.onclick = () => {
+    $$('#groupOptions .grp-chip').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); groupTarget = b.dataset.g; $('#newGroupInput').value = '';
+  });
+  $('#newGroupInput').value = '';
+  openModal('#groupModal');
+}
+function applyGroupMove() {
+  const typed = $('#newGroupInput').value.trim();
+  if (typed) groupTarget = typed;
+  if (groupTarget === null) { toast('請選擇或輸入分組'); return; }
+  const val = groupTarget === '__none' ? '' : groupTarget;
+  let n = 0;
+  contacts.forEach(c => { if (selected.has(c.id)) { c.group = val; n++; } });
+  save(); render(); closeModal('#groupModal'); exitSelect();
+  toast(`已將 ${n} 張移動到${val ? '「' + val + '」' : '未分組'}`);
 }
 
 /* ============================================================
@@ -920,6 +975,10 @@ function bind() {
   $('#importInput').onchange = e => { if (e.target.files[0]) importFromFile(e.target.files[0]); };
   $('#manualAdd').onclick = () => { closeModal('#captureModal'); openManual(); };
   $('#sortSelect').onchange = e => { sortBy = e.target.value; render(); };
+  $('#groupSelect').onchange = e => { const v = e.target.value; activeGroup = v === '__all' ? null : (v === '__none' ? '' : v.slice(2)); render(); };
+  $('#btnGroupEdit').onclick = () => renameGroup(activeGroup);
+  $('#selGroup').onclick = openGroupModal;
+  $('#groupApply').onclick = applyGroupMove;
 
   // 多選批次
   $('#btnSelect').onclick = () => selectMode ? exitSelect() : enterSelect();

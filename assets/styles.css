@@ -358,3 +358,16 @@ body.select-mode .fab{display:none}
   border-radius:11px;padding:11px 12px;font-size:15px;outline:none}
 .set-grid select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
 .set-hint{font-size:12.5px;margin-top:14px;line-height:1.5}
+
+/* ============================================================
+   分組管理
+   ============================================================ */
+.group-options{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.grp-chip{background:var(--surface);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:8px 15px;font-size:14px;cursor:pointer;transition:.16s}
+.grp-chip:hover{border-color:var(--accent-ring);color:var(--accent)}
+.grp-chip.on{background:var(--accent-soft);border-color:var(--accent-2);color:var(--accent);font-weight:700}
+.new-group{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);margin-top:8px}
+.new-group input{background:var(--surface);border:1px solid var(--line);color:var(--txt);
+  border-radius:11px;padding:11px 12px;font-size:15px;outline:none}
+.new-group input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
