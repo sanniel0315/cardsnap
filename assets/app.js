@@ -25,6 +25,8 @@ let lastImage = '';        // 最近擷取的名片縮圖(dataURL)
 let burstMode = false;     // 連拍(展場)模式
 let burstCount = 0;
 let recaptureId = null;    // 重拍:替換某張名片的照片
+let autoCapture = true;    // 對齊後自動擷取
+let detectRAF = null, detectCanvas = null, prevGrid = null, stableHits = 0, camReadyAt = 0, autoLocking = false;
 let selectMode = false;    // 多選模式
 let selected = new Set();
 let exportScope = null;    // null=全部;Set=僅選取
@@ -80,6 +82,7 @@ async function startCamera() {
     $('#cameraView').classList.remove('hidden');
     $('#dropzone').classList.add('hidden');
     $('#pickFallback').classList.remove('hidden');
+    camReadyAt = Date.now() + 800; startAutoDetect();
   } catch (e) {
     showFileFallback();
   }
@@ -93,6 +96,7 @@ function showFileFallback() {
 
 function stopCamera() {
   if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  stopAutoDetect();
   const v = $('#cameraVideo');
   if (v) v.srcObject = null;
 }
@@ -114,6 +118,73 @@ function captureFromCamera() {
   $('#cameraView').classList.add('hidden');
   $('#pickFallback').classList.add('hidden');
   recognize(cv, dataUrl);
+}
+
+/* ---------- 對齊偵測:自動擷取 ---------- */
+function stopAutoDetect() {
+  if (detectRAF) { cancelAnimationFrame(detectRAF); detectRAF = null; }
+  prevGrid = null; stableHits = 0; autoLocking = false;
+  const f = document.querySelector('.cam-frame');
+  if (f) f.classList.remove('aiming', 'locked');
+}
+function startAutoDetect() {
+  stopAutoDetect();
+  if (!autoCapture) return;
+  if (!detectCanvas) detectCanvas = document.createElement('canvas');
+  let last = 0;
+  const loop = (t) => {
+    detectRAF = requestAnimationFrame(loop);
+    if (t - last < 120) return; last = t;
+    if (autoLocking || !autoCapture) return;
+    const cv = $('#cameraView');
+    if (!cv || cv.classList.contains('hidden')) return;     // OCR/掃描中暫停
+    const v = $('#cameraVideo');
+    if (!v || !v.videoWidth || Date.now() < camReadyAt) return;
+    const m = analyzeFrame(v);
+    if (!m) return;
+    const detailed = m.detail > 11;                          // 框內有名片內容(文字/邊緣)
+    const stable = prevGrid ? gridDiff(prevGrid, m.grid) < 7 : false;  // 手持穩定
+    prevGrid = m.grid;
+    if (detailed && stable) stableHits++; else stableHits = Math.max(0, stableHits - 1);
+    const f = document.querySelector('.cam-frame');
+    if (f) f.classList.toggle('aiming', stableHits >= 2);
+    if (stableHits >= 5) lockAndCapture();
+  };
+  detectRAF = requestAnimationFrame(loop);
+}
+function analyzeFrame(v) {
+  const vw = v.videoWidth, vh = v.videoHeight; if (!vw) return null;
+  const ar = 1.586; let cw = vw * 0.9, ch = cw / ar;
+  if (ch > vh * 0.92) { ch = vh * 0.92; cw = ch * ar; }
+  const cx = (vw - cw) / 2, cy = (vh - ch) / 2;
+  const DW = 160, DH = Math.round(DW / ar), c = detectCanvas;
+  c.width = DW; c.height = DH;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(v, cx, cy, cw, ch, 0, 0, DW, DH);
+  let px; try { px = ctx.getImageData(0, 0, DW, DH).data; } catch (e) { return null; }
+  const N = DW * DH, g = new Float32Array(N);
+  for (let i = 0; i < N; i++) { const o = i * 4; g[i] = 0.299 * px[o] + 0.587 * px[o + 1] + 0.114 * px[o + 2]; }
+  let sum = 0, cnt = 0;
+  for (let y = 0; y < DH; y++) for (let x = 0; x < DW - 1; x++) { sum += Math.abs(g[y * DW + x + 1] - g[y * DW + x]); cnt++; }
+  for (let y = 0; y < DH - 1; y++) for (let x = 0; x < DW; x++) { sum += Math.abs(g[(y + 1) * DW + x] - g[y * DW + x]); cnt++; }
+  const detail = sum / cnt;
+  const GX = 8, GY = 8, grid = new Float32Array(GX * GY);
+  for (let gy = 0; gy < GY; gy++) for (let gx = 0; gx < GX; gx++) {
+    let s = 0, n = 0;
+    const x0 = Math.floor(gx * DW / GX), x1 = Math.floor((gx + 1) * DW / GX);
+    const y0 = Math.floor(gy * DH / GY), y1 = Math.floor((gy + 1) * DH / GY);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { s += g[y * DW + x]; n++; }
+    grid[gy * GX + gx] = n ? s / n : 0;
+  }
+  return { detail, grid };
+}
+function gridDiff(a, b) { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; }
+function lockAndCapture() {
+  autoLocking = true;
+  if (detectRAF) { cancelAnimationFrame(detectRAF); detectRAF = null; }
+  const f = document.querySelector('.cam-frame');
+  if (f) { f.classList.remove('aiming'); f.classList.add('locked'); }
+  setTimeout(() => { captureFromCamera(); }, 280);
 }
 
 async function recognize(source, previewUrl) {
@@ -602,6 +673,12 @@ function bind() {
     $('#burstCount').classList.toggle('hidden', !burstMode);
     $('#burstCount').textContent = '已建 0 張';
     toast(burstMode ? '連拍模式:拍完自動建檔' : '已關閉連拍');
+  };
+  $('#autoToggle').onclick = () => {
+    autoCapture = !autoCapture;
+    $('#autoToggle').classList.toggle('on', autoCapture);
+    if (autoCapture) { toast('自動擷取:對齊後自動拍'); startAutoDetect(); }
+    else { toast('已關閉自動擷取,改用快門'); stopAutoDetect(); }
   };
 
   // drag & drop(桌機後備)
