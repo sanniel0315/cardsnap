@@ -58,7 +58,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: '' };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -112,21 +112,40 @@ async function srcToBase64(source, max = 1600, q = 0.85) {
   c.getContext('2d').drawImage(img, 0, 0, cw, ch);
   return c.toDataURL('image/jpeg', q).split(',')[1];
 }
-async function cloudOCR(source) {
+function normalizeRemoteFields(f) {
+  if (!f || typeof f !== 'object') return null;
+  const out = {
+    name: f.name || '', company: f.company || '', title: f.title || '',
+    email: f.email || '', website: f.website || '', address: f.address || '',
+    fax: f.fax || '', taxId: f.taxId || f.tax_id || f.vat || '', note: f.note || '',
+  };
+  let phones = [];
+  if (Array.isArray(f.phones)) {
+    phones = f.phones.map(p => typeof p === 'string'
+      ? { label: '電話', value: p }
+      : { label: p.label || p.type || '電話', value: p.value || p.number || '' }).filter(p => p.value);
+  } else if (f.phone) phones = [{ label: '手機', value: f.phone }];
+  out.phones = phones;
+  out.phone = phones.length ? phones[0].value : (f.phone || '');
+  return (out.name || out.company || out.phone || out.email) ? out : null;
+}
+async function remoteOCR(source) {
   const b64 = await srcToBase64(source);
   const langHints = OCR_LANG_HINTS[settings.ocrLang] || ['zh-Hant', 'en'];
+  const custom = settings.ocrEndpoint && settings.ocrEndpoint.trim();
+  const url = custom || CLOUD_OCR_URL;
   const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 25000);
+  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 35000);
   try {
-    const r = await fetch(CLOUD_OCR_URL, {
+    const r = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: b64, langHints }), signal: ctrl ? ctrl.signal : undefined,
     });
-    if (r.status === 404 || r.status === 501) { cloudOcrDown = true; const j = await r.json().catch(() => ({})); throw new Error(j.error || '雲端未設定'); }
-    if (!r.ok) throw new Error('雲端 ' + r.status);
+    if ((r.status === 404 || r.status === 501) && !custom) { cloudOcrDown = true; const j = await r.json().catch(() => ({})); throw new Error(j.error || '雲端未設定'); }
+    if (!r.ok) throw new Error('辨識服務 ' + r.status);
     const j = await r.json();
     if (j.error) throw new Error(j.error);
-    return (j.text || '').trim();
+    return { text: (j.text || '').trim(), fields: normalizeRemoteFields(j.fields) };
   } finally { clearTimeout(killer); }
 }
 
@@ -302,14 +321,18 @@ async function recognize(source, previewUrl) {
   $('#ocrStatus').classList.remove('hidden');
   $('#ocrText').textContent = '辨識中…';
   try {
-    let text = null;
-    // 1) 雲端高精準(若啟用且可用)
-    if (settings.cloudOcr !== false && !cloudOcrDown) {
-      try { $('#ocrText').textContent = '雲端高精準辨識中…'; text = await cloudOCR(source); }
-      catch (e) {
+    let text = null, remoteFields = null;
+    const customEp = settings.ocrEndpoint && settings.ocrEndpoint.trim();
+    const useRemote = customEp || (settings.cloudOcr !== false && !cloudOcrDown);
+    // 1) 遠端高精準(自訂本機/GPU 伺服器 或 雲端 Vision)
+    if (useRemote) {
+      try {
+        $('#ocrText').textContent = customEp ? '高精準辨識中(本機 GPU)…' : '雲端高精準辨識中…';
+        const r = await remoteOCR(source);
+        text = r.text; remoteFields = r.fields;
+      } catch (e) {
         text = null;
-        if (cloudOcrDown) toast('雲端辨識尚未設定,改用本機辨識');
-        else toast('雲端辨識失敗,改用本機辨識');
+        toast((cloudOcrDown ? '辨識服務尚未設定' : '高精準辨識連線失敗') + ',改用本機辨識');
       }
     }
     // 2) 本機 Tesseract 後備
@@ -331,7 +354,7 @@ async function recognize(source, previewUrl) {
     $('#scanStage').classList.add('done');
     $('#ocrText').textContent = '辨識完成';
     await new Promise(r => setTimeout(r, 420));
-    const fields = parseCard(lastOcrRaw);
+    const fields = remoteFields || parseCard(lastOcrRaw);
 
     // 連拍模式:自動建檔,回到相機繼續
     if (burstMode) {
@@ -963,6 +986,7 @@ function openSettings() {
   $('#set_font').value = settings.fontSize || 'md';
   $('#set_lock').checked = !!settings.pinHash;
   $('#set_cloud').checked = settings.cloudOcr !== false;
+  $('#set_endpoint').value = settings.ocrEndpoint || '';
   updateStorage();
   openModal('#settingsModal');
 }
@@ -972,6 +996,8 @@ function applySettings() {
   settings.ocrLang = $('#set_ocr').value;
   settings.fontSize = $('#set_font').value;
   settings.cloudOcr = $('#set_cloud').checked;
+  settings.ocrEndpoint = $('#set_endpoint').value.trim();
+  cloudOcrDown = false;
   saveSettings();
   applyFontSize();
   sortBy = settings.sortBy;
