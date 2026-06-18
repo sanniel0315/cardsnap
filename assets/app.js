@@ -505,7 +505,7 @@ function signInAndSync() {
   if (!googleClientId()) { toast('雲端同步尚未設定(需填入 Google Client ID)'); return; }
   if (!driveTokenClient) { initDrive(); toast('同步初始化中,請再按一次'); return; }
   if (driveToken) doSync();
-  else driveTokenClient.requestAccessToken({ prompt: '' });
+  else driveTokenClient.requestAccessToken();
 }
 
 async function driveApi(url, opts) {
