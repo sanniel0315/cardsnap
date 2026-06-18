@@ -1,5 +1,8 @@
 /* CardSnap service worker — app-shell 離線快取 */
-const CACHE = 'cardsnap-v1';
+/* 版本號:CI 部署時把 __BUILD_ID__ 戳記為 commit SHA(見 scripts/stamp-version.sh);
+   未戳記時(本機開發)自動用 'dev'。原始碼保持乾淨。 */
+const BUILD_ID = '__BUILD_ID__';
+const CACHE = 'cardsnap-' + (BUILD_ID.indexOf('__') === 0 ? 'dev' : BUILD_ID);
 const SHELL = [
   './',
   './index.html',

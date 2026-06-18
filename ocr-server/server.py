@@ -1,11 +1,11 @@
 """
 CardSnap 本機 GPU OCR 伺服器
   - 接收 App 傳來的名片影像(base64 JPEG)
-  - 呼叫本機 Ollama 的視覺模型(預設 qwen2.5vl:7b)做 OCR + 結構化抽取
+  - 呼叫本機 Ollama 的視覺模型(預設 qwen2.5vl:32b)做 OCR + 結構化抽取
   - 回傳 { text, fields }  fields = {name, company, title, phones[], email, website, address, fax, taxId, note}
 
 啟動:  run.bat   (或  python -m uvicorn server:app --host 0.0.0.0 --port 8000)
-需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:7b
+需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:32b
 """
 import os, json, base64, re
 import requests
@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:7b")
+MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:32b")
 
 app = FastAPI(title="CardSnap Local OCR")
 app.add_middleware(

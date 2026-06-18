@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Stamp SW version（唯一版本號 = commit SHA)
+        run: bash scripts/stamp-version.sh "${GITHUB_SHA}"
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:

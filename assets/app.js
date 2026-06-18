@@ -80,7 +80,7 @@ function save() {
 }
 
 /* ---------- 影像壓縮(縮圖) ---------- */
-function compressImage(source, max = 460, q = 0.6) {
+function compressImage(source, max = 1000, q = 0.72) {
   const sw = source.width || source.videoWidth || source.naturalWidth;
   const sh = source.height || source.videoHeight || source.naturalHeight;
   if (!sw || !sh) return '';
