@@ -28,6 +28,9 @@
       <span>CardSnap</span>
     </div>
     <div class="top-actions">
+      <button id="btnSettings" class="icon-btn" title="設定" aria-label="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l1.8-1.4-1.8-3.1-2.2.9a7.6 7.6 0 0 0-2.6-1.5L12 2h-3.6l-.8 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.2-.9-1.8 3.1L2.8 10.5a7.7 7.7 0 0 0 0 3L1 14.9l1.8 3.1 2.2-.9a7.6 7.6 0 0 0 2.6 1.5L8.4 21H12"/></svg>
+      </button>
       <button id="btnSync" class="icon-btn" title="雲端同步" aria-label="雲端同步">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .6 6.94"/><path d="M12 11v6m0 0 2.2-2.2M12 17l-2.2-2.2"/></svg>
       </button>
@@ -137,10 +140,15 @@
         <label>姓名<input id="f_name" type="text" placeholder="王小明"></label>
         <label>公司<input id="f_company" type="text" placeholder="範例科技股份有限公司"></label>
         <label>職稱<input id="f_title" type="text" placeholder="產品經理"></label>
-        <label>電話<input id="f_phone" type="text" placeholder="0912-345-678"></label>
+        <div class="full phones-field">
+          <span class="pf-label">電話</span>
+          <div id="phonesWrap"></div>
+          <button type="button" id="addPhone" class="link-btn add-phone">+ 新增電話</button>
+        </div>
         <label>Email<input id="f_email" type="text" placeholder="name@example.com"></label>
         <label>網站<input id="f_website" type="text" placeholder="example.com"></label>
         <label class="full">地址<input id="f_address" type="text" placeholder="台北市…"></label>
+        <label class="full">分組<input id="f_group" type="text" list="groupList" placeholder="客戶 / 供應商 / 未分組"><datalist id="groupList"></datalist></label>
         <label class="full">標籤(逗號分隔)<input id="f_tags" type="text" placeholder="展場, 供應商"></label>
         <label class="full">備註<textarea id="f_note" rows="2" placeholder="在哪認識的、後續事項…"></textarea></label>
       </div>
@@ -165,11 +173,9 @@
       <div id="qrWrap" class="qr-wrap"><canvas id="qrCanvas"></canvas><small>掃描存入通訊錄</small></div>
     </div>
     <div class="modal-foot">
-      <button id="btnEdit" class="btn ghost">編輯</button>
-      <button id="btnRecapture" class="btn ghost">重拍</button>
-      <span style="flex:1"></span>
       <button id="btnVcard" class="btn ghost">vCard</button>
-      <button id="btnShare" class="btn primary">分享</button>
+      <span style="flex:1"></span>
+      <button id="btnShare" class="btn primary">分享名片</button>
     </div>
   </div>
 </div>
@@ -203,6 +209,42 @@
   <button id="selExport" class="sb-btn">匯出</button>
   <button id="selDelete" class="sb-btn danger">刪除</button>
   <button id="selDone" class="sb-btn done">完成</button>
+</div>
+
+<!-- ============ Settings modal ============ -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-card sm">
+    <div class="modal-head"><h3>設定</h3><button class="icon-btn close" data-close aria-label="關閉">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m5 5 10 10M15 5 5 15"/></svg></button></div>
+    <div class="modal-body">
+      <div class="set-grid">
+        <label>預設排序
+          <select id="set_sort">
+            <option value="recent">最近加入</option>
+            <option value="name">依姓名</option>
+            <option value="company">依公司</option>
+          </select></label>
+        <label>列表主要顯示
+          <select id="set_listmain">
+            <option value="name">姓名(公司為副標)</option>
+            <option value="company">公司(姓名為副標)</option>
+          </select></label>
+        <label>OCR 辨識語言
+          <select id="set_ocr">
+            <option value="chi_tra+eng">繁體中文 + 英文</option>
+            <option value="chi_sim+eng">簡體中文 + 英文</option>
+            <option value="eng">純英文</option>
+            <option value="jpn+eng">日文 + 英文</option>
+          </select></label>
+      </div>
+      <p class="muted set-hint">辨識語言會在下次拍照時套用;切換非繁中語言首次辨識需下載語言模型。</p>
+    </div>
+    <div class="modal-foot">
+      <span style="flex:1"></span>
+      <button class="btn ghost" data-close>取消</button>
+      <button id="setSave" class="btn primary">儲存設定</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast hidden"></div>

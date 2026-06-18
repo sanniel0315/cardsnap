@@ -27,13 +27,49 @@ let burstCount = 0;
 let recaptureId = null;    // 重拍:替換某張名片的照片
 let autoCapture = true;    // 對齊後自動擷取
 let detectRAF = null, detectCanvas = null, prevGrid = null, stableHits = 0, camReadyAt = 0, autoLocking = false;
+let recaptureSide = 0;     // 重拍/拍背面:0=正面 1=背面
+const SETTINGS_KEY = 'cardsnap.settings';
+let settings = loadSettings();
 let selectMode = false;    // 多選模式
 let selected = new Set();
 let exportScope = null;    // null=全部;Set=僅選取
 
 function load() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
-  catch { return []; }
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { arr = []; }
+  return arr.map(migrate);
+}
+/* 舊資料 → 新欄位(多電話 phones[]、雙面 images[]、分組 group) */
+function migrate(c) {
+  if (!Array.isArray(c.images)) c.images = c.image ? [c.image] : [];
+  if (c.images.length && !c.image) c.image = c.images[0];
+  if (!Array.isArray(c.phones)) c.phones = c.phone ? [{ label: '手機', value: c.phone }] : [];
+  if (c.phones.length && !c.phone) c.phone = c.phones[0].value;
+  if (typeof c.group !== 'string') c.group = '';
+  if (typeof c.source !== 'string') c.source = '';
+  return c;
+}
+/* phones[] → 同步主電話 + 去空白 */
+function syncPhones(c) {
+  c.phones = (c.phones || []).filter(p => (p.value || '').trim());
+  c.phone = c.phones.length ? c.phones[0].value.trim() : '';
+  return c;
+}
+function loadSettings() {
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', groupOnSave: false };
+  try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
+  catch { return def; }
+}
+function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+function allGroups() {
+  const s = new Set();
+  contacts.forEach(c => { if (c.group) s.add(c.group); });
+  return [...s].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+}
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); }
@@ -191,8 +227,16 @@ async function recognize(source, previewUrl) {
   // 重拍:只替換照片,不做 OCR
   if (recaptureId) {
     const c = contacts.find(x => x.id === recaptureId);
-    if (c) { c.image = lastImage || c.image; save(); render(); }
-    recaptureId = null; closeModal('#captureModal'); toast('已更新名片照片'); return;
+    if (c) {
+      c.images = c.images || [];
+      c.images[recaptureSide] = lastImage || c.images[recaptureSide];
+      c.image = c.images[0] || c.image;
+      c.updated = Date.now(); save(); render();
+    }
+    const side = recaptureSide; recaptureId = null; recaptureSide = 0;
+    closeModal('#captureModal'); toast(side ? '已更新背面照片' : '已更新名片照片');
+    if (c) openDetail(c.id);
+    return;
   }
   $('#preview').src = previewUrl;
   $('#dropzone').classList.add('hidden');
@@ -202,7 +246,7 @@ async function recognize(source, previewUrl) {
   $('#ocrText').textContent = '辨識中…';
   try {
     if (typeof Tesseract === 'undefined') throw new Error('OCR 引擎尚未載入,請檢查網路');
-    const { data } = await Tesseract.recognize(source, 'chi_tra+eng', {
+    const { data } = await Tesseract.recognize(source, settings.ocrLang || 'chi_tra+eng', {
       logger: m => {
         if (m.status === 'recognizing text')
           $('#ocrText').textContent = `辨識中… ${Math.round(m.progress * 100)}%`;
@@ -219,7 +263,7 @@ async function recognize(source, previewUrl) {
     // 連拍模式:自動建檔,回到相機繼續
     if (burstMode) {
       if (fields.name || fields.company || fields.phone || fields.email) {
-        contacts.unshift({ id: uid(), created: Date.now(), updated: Date.now(), favorite: false, raw: lastOcrRaw, image: lastImage, ...fields });
+        contacts.unshift(migrate({ id: uid(), created: Date.now(), updated: Date.now(), favorite: false, raw: lastOcrRaw, image: lastImage, source: '拍照', ...fields }));
         save(); render(); burstCount++;
         $('#burstCount').textContent = `已建 ${burstCount} 張`;
         toast(`已建檔(${burstCount})`);
@@ -298,6 +342,35 @@ async function importFromFile(file) {
   $('#importInput').value = '';
 }
 
+
+/* ---------- 多電話編輯 ---------- */
+const PHONE_LABELS = ['手機', '市話', '傳真', '其他'];
+function phoneRow(label, value) {
+  const opts = PHONE_LABELS.map(l => `<option ${l === label ? 'selected' : ''}>${l}</option>`).join('');
+  return `<div class="ph-row"><select class="ph-label">${opts}</select>` +
+    `<input class="ph-val" type="tel" value="${esc(value || '')}" placeholder="0912-345-678">` +
+    `<button type="button" class="ph-del" title="移除">×</button></div>`;
+}
+function renderPhones(phones) {
+  const wrap = $('#phonesWrap');
+  const list = (phones && phones.length) ? phones : [{ label: '手機', value: '' }];
+  wrap.innerHTML = list.map(p => phoneRow(p.label, p.value)).join('');
+  bindPhoneRows();
+}
+function bindPhoneRows() {
+  $$('#phonesWrap .ph-del').forEach(b => b.onclick = () => {
+    const rows = $$('#phonesWrap .ph-row');
+    if (rows.length <= 1) { b.closest('.ph-row').querySelector('.ph-val').value = ''; return; }
+    b.closest('.ph-row').remove();
+  });
+}
+function readPhones() {
+  return $$('#phonesWrap .ph-row').map(r => ({
+    label: r.querySelector('.ph-label').value,
+    value: r.querySelector('.ph-val').value.trim()
+  })).filter(p => p.value);
+}
+
 function openManual() {
   openEdit(null, {}, '');
   $('#editTitle').textContent = '手動新增名片';
@@ -333,6 +406,12 @@ function initials(name) {
 }
 
 const CHECK_SVG = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 10 3.5 3.5L15 7"/></svg>';
+const ICON_CALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h3l1.5 4-2 1.4a10 10 0 0 0 4.6 4.6l1.4-2 4 1.5v3a1 1 0 0 1-1.1 1A15 15 0 0 1 5 5.1 1 1 0 0 1 6 4"/></svg>';
+const ICON_MAP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11"/><circle cx="12" cy="10" r="2.6"/></svg>';
+const ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.7 7.4-4.4M8.3 13.3l7.4 4.4"/></svg>';
+const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M4 20l1-4 11-11 4 4-11 11z"/></svg>';
+const ICON_CALL_SM = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3l1.3 3.2-1.7 1.2a9 9 0 0 0 3.8 3.8l1.2-1.7L16.5 14v3a1 1 0 0 1-1.1 1A12.5 12.5 0 0 1 4 6.6 1 1 0 0 1 5 3.5"/></svg>';
+const ICON_SMS = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v6A1.5 1.5 0 0 1 15.5 13H8l-4 3v-3H4.5A1.5 1.5 0 0 1 3 11.5z"/></svg>';
 
 function render() {
   document.body.classList.toggle('select-mode', selectMode);
@@ -353,8 +432,8 @@ function render() {
       <div class="sel-box">${CHECK_SVG}</div>
       ${c.image ? `<img class="avatar avatar-img" src="${c.image}" alt="">` : `<div class="avatar">${esc(initials(c.name))}</div>`}
       <div class="c-main">
-        <div class="c-name">${esc(c.name || '未命名')} ${c.favorite ? '<span class="star">★</span>' : ''}</div>
-        <div class="c-sub">${esc([c.title, c.company].filter(Boolean).join(' · ') || c.phone || c.email || '—')}</div>
+        <div class="c-name">${esc(settings.listMain === 'company' ? (c.company || c.name || '未命名') : (c.name || '未命名'))} ${c.favorite ? '<span class="star">★</span>' : ''}</div>
+        <div class="c-sub">${esc((settings.listMain === 'company' ? [c.name, c.title] : [c.title, c.company]).filter(Boolean).join(' · ') || c.phone || c.email || '—')}</div>
         ${(c.tags || []).length ? `<div class="c-tags">${c.tags.map(t => `<span class="c-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       </div>
       <div class="c-quick">
@@ -418,10 +497,12 @@ function openEdit(id, fields, raw) {
   $('#f_name').value = c.name || '';
   $('#f_company').value = c.company || '';
   $('#f_title').value = c.title || '';
-  $('#f_phone').value = c.phone || '';
+  renderPhones(c.phones && c.phones.length ? c.phones : (c.phone ? [{ label: '手機', value: c.phone }] : []));
   $('#f_email').value = c.email || '';
   $('#f_website').value = c.website || '';
   $('#f_address').value = c.address || '';
+  $('#groupList').innerHTML = allGroups().map(g => `<option value="${esc(g)}">`).join('');
+  $('#f_group').value = c.group || '';
   $('#f_tags').value = (c.tags || []).join(', ');
   $('#f_note').value = c.note || '';
   $('#rawText').textContent = raw || c.raw || '(無)';
@@ -430,14 +511,17 @@ function openEdit(id, fields, raw) {
 }
 
 function saveEdit() {
+  const phones = readPhones();
   const data = {
     name: $('#f_name').value.trim(),
     company: $('#f_company').value.trim(),
     title: $('#f_title').value.trim(),
-    phone: $('#f_phone').value.trim(),
+    phones: phones,
+    phone: phones.length ? phones[0].value : '',
     email: $('#f_email').value.trim(),
     website: $('#f_website').value.trim(),
     address: $('#f_address').value.trim(),
+    group: $('#f_group').value.trim(),
     tags: $('#f_tags').value.split(',').map(t => t.trim()).filter(Boolean),
     note: $('#f_note').value.trim(),
     updated: Date.now(),
@@ -449,7 +533,8 @@ function saveEdit() {
     const c = contacts.find(x => x.id === editingId);
     Object.assign(c, data);
   } else {
-    contacts.unshift({ id: uid(), created: Date.now(), favorite: false, raw: lastOcrRaw, image: lastImage, ...data });
+    contacts.unshift(migrate({ id: uid(), created: Date.now(), favorite: false, raw: lastOcrRaw,
+      image: lastImage, images: lastImage ? [lastImage] : [], source: lastImage ? '拍照' : '手動', ...data }));
   }
   save(); render(); closeModal('#editModal'); resetCapture();
   toast(editingId ? '已更新' : '已建檔');
@@ -459,26 +544,79 @@ function saveEdit() {
 /* ============================================================
    詳情 / 分享 / 重拍
    ============================================================ */
+function mapsHref(addr) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr); }
+
 function openDetail(id) {
   detailId = id;
   const c = contacts.find(x => x.id === id);
   if (!c) return;
-  $('#d_name').textContent = c.name || '名片';
-  const row = (label, val, href) => val ? `
-    <div class="detail-row"><span class="dl">${label}</span>
-    <span class="dv">${href ? `<a href="${esc(href)}">${esc(val)}</a>` : esc(val)}</span></div>` : '';
-  $('#detailBody').innerHTML =
-    (c.image ? `<img class="detail-img" src="${c.image}" alt="名片">` : '') +
-    `<div class="detail-row"><span class="dl">標記</span><span class="dv">
-       <span class="link-btn" id="favToggle" style="cursor:pointer">${c.favorite ? '★ 已收藏' : '☆ 收藏'}</span></span></div>` +
-    row('公司', c.company) + row('職稱', c.title) +
-    row('電話', c.phone, c.phone ? `tel:${c.phone}` : '') +
-    row('Email', c.email, c.email ? `mailto:${c.email}` : '') +
-    row('網站', c.website, c.website ? (/^https?:/.test(c.website) ? c.website : 'https://' + c.website) : '') +
-    row('地址', c.address) +
-    ((c.tags || []).length ? `<div class="detail-row"><span class="dl">標籤</span><span class="dv">${c.tags.map(t => `<span class="c-tag">${esc(t)}</span>`).join(' ')}</span></div>` : '') +
-    row('備註', c.note);
+  $('#d_name').textContent = c.name || c.company || '名片';
+  const imgs = (c.images && c.images.length) ? c.images : (c.image ? [c.image] : []);
+
+  let carousel = '';
+  if (imgs.length) {
+    carousel = `<div class="dc-carousel" id="dcCar">
+      <div class="dc-track" id="dcTrack">${imgs.map(u => `<img src="${u}" alt="名片">`).join('')}</div>
+      ${imgs.length > 1 ? `<div class="dc-dots">${imgs.map((_, i) => `<i data-i="${i}" class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+    </div>`;
+  }
+
+  const summary = `<div class="dc-summary">
+    ${c.image ? `<img class="dc-ava" src="${c.image}" alt="">` : `<div class="dc-ava dc-ava-txt">${esc(initials(c.name || c.company))}</div>`}
+    <div class="dc-sum-main">
+      <div class="dc-sum-name">${esc(c.name || '未命名')}${c.favorite ? ' <span class="star">★</span>' : ''}</div>
+      ${c.company ? `<div class="dc-sum-sub">${esc(c.company)}</div>` : ''}
+      ${c.title ? `<div class="dc-sum-sub muted">${esc(c.title)}</div>` : ''}
+    </div>
+  </div>`;
+
+  const phone0 = (c.phones && c.phones.length) ? c.phones[0].value : c.phone;
+  const actions = `<div class="dc-actions">
+    <a class="dc-act ${phone0 ? '' : 'off'}" ${phone0 ? `href="tel:${esc(phone0)}"` : ''}><span class="dc-act-ic ic-call">${ICON_CALL}</span>電話</a>
+    <a class="dc-act ${c.address ? '' : 'off'}" ${c.address ? `href="${mapsHref(c.address)}" target="_blank" rel="noopener"` : ''}><span class="dc-act-ic ic-map">${ICON_MAP}</span>地址</a>
+    <button class="dc-act" id="dcShare"><span class="dc-act-ic ic-share">${ICON_SHARE}</span>分享</button>
+    <button class="dc-act" id="dcEdit"><span class="dc-act-ic ic-edit">${ICON_EDIT}</span>編輯</button>
+  </div>`;
+
+  const rows = [];
+  if (c.group) rows.push(`<div class="dc-row"><span class="dc-label">分組</span><span class="dc-val">${esc(c.group)}</span></div>`);
+  const phs = (c.phones && c.phones.length) ? c.phones : (c.phone ? [{ label: '手機', value: c.phone }] : []);
+  phs.forEach(p => {
+    rows.push(`<div class="dc-row"><span class="dc-label">${esc(p.label || '電話')}</span>` +
+      `<span class="dc-val"><a href="tel:${esc(p.value)}">${esc(p.value)}</a></span>` +
+      `<span class="dc-row-acts"><a href="tel:${esc(p.value)}" title="撥打">${ICON_CALL_SM}</a><a href="sms:${esc(p.value)}" title="簡訊">${ICON_SMS}</a></span></div>`);
+  });
+  if (c.email) rows.push(`<div class="dc-row"><span class="dc-label">Email</span><span class="dc-val"><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></span></div>`);
+  if (c.website) { const w = /^https?:/.test(c.website) ? c.website : 'https://' + c.website; rows.push(`<div class="dc-row"><span class="dc-label">網站</span><span class="dc-val"><a href="${esc(w)}" target="_blank" rel="noopener">${esc(c.website)}</a></span></div>`); }
+  if (c.address) rows.push(`<div class="dc-row"><span class="dc-label">地址</span><span class="dc-val"><a href="${mapsHref(c.address)}" target="_blank" rel="noopener">${esc(c.address)}</a></span></div>`);
+  if ((c.tags || []).length) rows.push(`<div class="dc-row"><span class="dc-label">標籤</span><span class="dc-val">${c.tags.map(t => `<span class="c-tag">${esc(t)}</span>`).join(' ')}</span></div>`);
+
+  const meta = `建檔 ${fmtDate(c.created)}${c.source ? ' · 來源:' + esc(c.source) : ''}`;
+  const noteBlock = `<div class="dc-note"><div class="dc-label">備註</div>` +
+    `<div class="dc-note-body">${c.note ? esc(c.note) : '<span class="muted">尚無備註</span>'}</div>` +
+    `<div class="dc-meta">${meta}</div></div>`;
+
+  $('#detailBody').innerHTML = carousel + summary + actions +
+    `<div class="dc-fav"><span class="link-btn" id="favToggle">${c.favorite ? '★ 已收藏' : '☆ 收藏'}</span>` +
+    `<span class="link-btn" id="dcReFront">重拍正面</span>` +
+    `<span class="link-btn" id="dcBack">${imgs.length > 1 ? '重拍背面' : '加拍背面'}</span></div>` +
+    `<div class="dc-rows">${rows.join('')}</div>` + noteBlock;
+
   $('#favToggle').onclick = () => { c.favorite = !c.favorite; save(); render(); openDetail(id); };
+  $('#dcEdit').onclick = () => { closeModal('#detailModal'); openEdit(id); };
+  $('#dcShare').onclick = () => shareContact(c);
+  $('#dcReFront').onclick = () => recaptureFor(id, 0);
+  $('#dcBack').onclick = () => recaptureFor(id, 1);
+
+  const track = $('#dcTrack');
+  if (track && imgs.length > 1) {
+    let idx = 0; const dots = $$('#dcCar .dc-dots i');
+    const go = i => { idx = Math.max(0, Math.min(imgs.length - 1, i)); track.style.transform = `translateX(-${idx * 100}%)`; dots.forEach((d, k) => d.classList.toggle('on', k === idx)); };
+    dots.forEach(d => d.onclick = () => go(+d.dataset.i));
+    let sx = null;
+    track.addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
+    track.addEventListener('touchend', e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 40) go(idx + (dx < 0 ? 1 : -1)); sx = null; });
+  }
 
   try {
     if (typeof QRCode !== 'undefined') {
@@ -489,8 +627,9 @@ function openDetail(id) {
   openModal('#detailModal');
 }
 
-function recaptureFor(id) {
+function recaptureFor(id, side = 0) {
   recaptureId = id;
+  recaptureSide = side;
   burstMode = false;
   closeModal('#detailModal');
   resetCapture();
@@ -651,6 +790,27 @@ function initSyncStatus() {
    UI helpers
    ============================================================ */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+/* ============================================================
+   設定
+   ============================================================ */
+function openSettings() {
+  $('#set_sort').value = settings.sortBy;
+  $('#set_listmain').value = settings.listMain;
+  $('#set_ocr').value = settings.ocrLang;
+  openModal('#settingsModal');
+}
+function applySettings() {
+  settings.sortBy = $('#set_sort').value;
+  settings.listMain = $('#set_listmain').value;
+  settings.ocrLang = $('#set_ocr').value;
+  saveSettings();
+  sortBy = settings.sortBy;
+  const ss = $('#sortSelect'); if (ss) ss.value = sortBy;
+  render();
+  closeModal('#settingsModal');
+  toast('設定已儲存');
+}
+
 function openModal(sel) { $(sel).classList.remove('hidden'); }
 function closeModal(sel) { if (sel === '#captureModal') stopCamera(); $(sel).classList.add('hidden'); }
 let toastT;
@@ -706,10 +866,13 @@ function bind() {
   };
 
   // 詳情動作
-  $('#btnEdit').onclick = () => { closeModal('#detailModal'); openEdit(detailId); };
   $('#btnShare').onclick = () => shareContact(contacts.find(c => c.id === detailId));
-  $('#btnRecapture').onclick = () => recaptureFor(detailId);
   $('#btnVcard').onclick = () => { const c = contacts.find(x => x.id === detailId); download(new Blob([toVCard(c)], { type: 'text/vcard' }), `${c.name || 'card'}.vcf`); };
+  // 新增電話列
+  $('#addPhone').onclick = () => { $('#phonesWrap').insertAdjacentHTML('beforeend', phoneRow('手機', '')); bindPhoneRows(); };
+  // 設定
+  $('#btnSettings').onclick = openSettings;
+  $('#setSave').onclick = applySettings;
 
   // 匯出 / 匯入 / 手動 / 排序
   $('#btnExport').onclick = () => { exportScope = null; $('#expCount').textContent = contacts.length; openModal('#exportModal'); };
@@ -740,7 +903,9 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ---------- init ---------- */
+sortBy = settings.sortBy || 'recent';
 bind();
+{ const ss = $('#sortSelect'); if (ss) ss.value = sortBy; }
 render();
 initDrive();
 initSyncStatus();

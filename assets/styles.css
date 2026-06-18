@@ -283,3 +283,78 @@ body.select-mode .fab{display:none}
 /* 雲端同步狀態列 */
 .sync-status{font-size:12px;color:var(--accent);background:var(--accent-soft);
   border:1px solid rgba(13,148,136,.22);border-radius:999px;padding:3px 11px;white-space:nowrap;letter-spacing:.2px}
+
+/* ============================================================
+   多電話編輯 + 分組(編輯頁)
+   ============================================================ */
+.phones-field{display:flex;flex-direction:column;gap:6px}
+.pf-label{font-size:12px;color:var(--muted);letter-spacing:.3px}
+#phonesWrap{display:flex;flex-direction:column;gap:8px}
+.ph-row{display:flex;gap:8px;align-items:center}
+.ph-row .ph-label{flex:none;width:84px;background:var(--surface);border:1px solid var(--line);color:var(--txt);
+  border-radius:10px;padding:10px 8px;font-size:14px;outline:none}
+.ph-row .ph-val{flex:1;background:var(--surface);border:1px solid var(--line);color:var(--txt);
+  border-radius:10px;padding:10px 12px;font-size:15px;outline:none}
+.ph-row .ph-val:focus,.ph-row .ph-label:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+.ph-row .ph-del{flex:none;width:34px;height:38px;border:1px solid var(--line);background:var(--surface-2);
+  color:var(--dim);border-radius:10px;cursor:pointer;font-size:18px;line-height:1}
+.ph-row .ph-del:hover{color:var(--danger);border-color:var(--danger)}
+.add-phone{align-self:flex-start;padding:4px 0}
+.edit-grid select{background:var(--surface);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 12px;font-size:15px;outline:none}
+
+/* ============================================================
+   詳情頁重設計
+   ============================================================ */
+.dc-carousel{position:relative;border-radius:14px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line);margin-bottom:14px}
+.dc-track{display:flex;transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.dc-track img{width:100%;flex:none;display:block;object-fit:contain;max-height:240px;background:#0b1417}
+.dc-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:6px}
+.dc-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55);cursor:pointer;transition:.18s}
+.dc-dots i.on{background:#fff;width:18px;border-radius:4px}
+
+.dc-summary{display:flex;align-items:center;gap:14px;padding:4px 2px 14px}
+.dc-ava{width:54px;height:54px;border-radius:14px;object-fit:cover;flex:none;border:1px solid var(--line)}
+.dc-ava-txt{display:grid;place-items:center;color:#fff;font-weight:800;font-size:20px;background:var(--grad)}
+.dc-sum-main{min-width:0}
+.dc-sum-name{font-size:19px;font-weight:800;color:var(--txt);display:flex;align-items:center;gap:6px}
+.dc-sum-sub{font-size:14px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.dc-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:4px 0 16px;border-bottom:1px solid var(--line-2)}
+.dc-act{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+  text-decoration:none;background:none;border:none;cursor:pointer;font-family:inherit}
+.dc-act-ic{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:#fff}
+.dc-act-ic svg{width:22px;height:22px}
+.dc-act .ic-call{background:#3b82f6}
+.dc-act .ic-map{background:#f59e0b}
+.dc-act .ic-share{background:#10b981}
+.dc-act .ic-edit{background:#0ea5e9}
+.dc-act.off{opacity:.35;pointer-events:none}
+
+.dc-fav{display:flex;gap:16px;padding:12px 0;flex-wrap:wrap;border-bottom:1px solid var(--line-2)}
+.dc-fav .link-btn{cursor:pointer}
+
+.dc-rows{display:flex;flex-direction:column;padding:2px 0}
+.dc-row{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line-2)}
+.dc-row:last-child{border:none}
+.dc-label{font-size:11px;color:var(--dim);width:52px;flex:none;letter-spacing:.4px}
+.dc-val{flex:1;font-size:15px;color:var(--txt);word-break:break-all}
+.dc-val a{color:var(--accent);text-decoration:none}
+.dc-row-acts{display:flex;gap:6px;flex:none}
+.dc-row-acts a{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.dc-row-acts a svg{width:16px;height:16px}
+.dc-row-acts a:hover{color:var(--accent);border-color:var(--accent-ring)}
+
+.dc-note{padding:14px 0 4px}
+.dc-note-body{font-size:14.5px;color:var(--txt);margin-top:6px;line-height:1.55;white-space:pre-wrap}
+.dc-meta{font-size:12px;color:var(--dim);margin-top:8px}
+
+/* ============================================================
+   設定頁
+   ============================================================ */
+.set-grid{display:flex;flex-direction:column;gap:14px}
+.set-grid label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);letter-spacing:.3px}
+.set-grid select{background:var(--surface);border:1px solid var(--line);color:var(--txt);
+  border-radius:11px;padding:11px 12px;font-size:15px;outline:none}
+.set-grid select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+.set-hint{font-size:12.5px;margin-top:14px;line-height:1.5}
