@@ -7,11 +7,12 @@ CardSnap 本機 GPU OCR 伺服器
 啟動:  run.bat   (或  python -m uvicorn server:app --host 0.0.0.0 --port 8000)
 需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:32b
 """
-import os, json, base64, re
+import os, json, base64, re, traceback
 import requests
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:32b")
@@ -33,25 +34,25 @@ PROMPT = (
 )
 
 def call_ollama(b64: str) -> dict:
+    # 用 /api/chat(對視覺模型較穩);不開 format=json(部分版本會 500),改用解析
     body = {
         "model": MODEL,
-        "prompt": PROMPT,
-        "images": [b64],
+        "messages": [{"role": "user", "content": PROMPT, "images": [b64]}],
         "stream": False,
-        "format": "json",
         "options": {"temperature": 0},
     }
-    r = requests.post(f"{OLLAMA}/api/generate", json=body, timeout=120)
-    r.raise_for_status()
-    resp = r.json().get("response", "").strip()
-    # 模型理應回純 JSON;保險起見抽出第一個 JSON 物件
+    r = requests.post(f"{OLLAMA}/api/chat", json=body, timeout=180)
+    if r.status_code != 200:
+        raise RuntimeError(f"ollama /api/chat {r.status_code}: {r.text[:400]}")
+    data = r.json()
+    resp = ((data.get("message") or {}).get("content") or "").strip()
     try:
         return json.loads(resp)
     except Exception:
         m = re.search(r"\{.*\}", resp, re.S)
         if m:
             return json.loads(m.group(0))
-        raise
+        raise RuntimeError("模型輸出非 JSON:" + resp[:300])
 
 def normalize(d: dict) -> dict:
     d = d or {}
@@ -95,9 +96,8 @@ async def ocr(req: Request):
     if not img:
         return JSONResponse({"error": "no image"}, status_code=400)
     try:
-        raw = call_ollama(img)
+        raw = await run_in_threadpool(call_ollama, img)
         return normalize(raw)
-    except requests.HTTPError as e:
-        return JSONResponse({"error": f"Ollama 錯誤:{e}"}, status_code=502)
     except Exception as e:
+        traceback.print_exc()
         return JSONResponse({"error": f"辨識失敗:{e}"}, status_code=502)
