@@ -1,7 +1,7 @@
 # Netlify 設定:純靜態前端,無需 build,直接服務根目錄
 [build]
   publish = "."
-  command = "bash scripts/stamp-version.sh"
+  command = ""
 
 [build.environment]
   NODE_VERSION = "18"

@@ -26,15 +26,14 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const { request } = e;
   if (request.method !== 'GET') return;
-  // 同源:cache-first;跨源(CDN OCR 等):network-first 不快取
   const sameOrigin = new URL(request.url).origin === self.location.origin;
-  if (sameOrigin) {
-    e.respondWith(
-      caches.match(request).then(hit => hit || fetch(request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(request, copy));
-        return res;
-      }).catch(() => caches.match('./index.html')))
-    );
-  }
+  if (!sameOrigin) return;  // 跨源(CDN / OCR)交給瀏覽器,不快取
+  // 網路優先:永遠先抓最新,成功就更新快取;離線才用快取
+  e.respondWith(
+    fetch(request).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(request, copy));
+      return res;
+    }).catch(() => caches.match(request).then(hit => hit || caches.match('./index.html')))
+  );
 });
