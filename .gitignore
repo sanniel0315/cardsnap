@@ -1,12 +1,6 @@
-# OS / editor
-.DS_Store
-Thumbs.db
-*.log
-.vscode/
-.idea/
-
-# deps (本專案為純前端,無 build；保留以備未來)
-node_modules/
 dist/
-.cache/
-.git_broken/
+node_modules/
+ocr-server/.venv/
+CardSnap_匯入_*.json
+*.local
+.DS_Store
