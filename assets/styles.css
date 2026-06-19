@@ -489,3 +489,20 @@ body.fs-sm .c-sub{font-size:12.5px}
 body.select-mode .ctable tbody tr.selected .sel-box { background: var(--accent); border-color: var(--accent); color: #fff; }
 body:not(.select-mode) .ctable .t-sel { visibility: hidden; }
 .ctable .sel-box svg { width: 13px; height: 13px; }
+
+/* ============================================================
+   Navbar:時鐘 / 登入者 / 登出
+   ============================================================ */
+.nav-clock{font-size:13px;color:var(--muted);white-space:nowrap;letter-spacing:.3px;font-variant-numeric:tabular-nums}
+.nav-user{display:flex;align-items:center;gap:8px;margin-right:4px}
+.nav-user .nu-ava{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--line)}
+.nav-user .nu-ava-txt{display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;background:var(--grad)}
+.nav-user .nu-name{font-size:13.5px;color:var(--txt);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-user .nu-logout,.nav-user .nu-login{background:var(--surface);border:1px solid var(--line);color:var(--muted);
+  border-radius:9px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;transition:.16s;font-family:inherit}
+.nav-user .nu-login{background:var(--accent-soft);border-color:var(--accent-2);color:var(--accent)}
+.nav-user .nu-logout:hover,.nav-user .nu-login:hover{border-color:var(--accent-ring);color:var(--accent)}
+@media (max-width: 600px){
+  .nav-clock{display:none}
+  .nav-user .nu-name{display:none}
+}

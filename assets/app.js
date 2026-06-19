@@ -916,8 +916,9 @@ async function shareContact(c) {
 /* ============================================================
    Google Drive 同步(存於使用者自己的 Drive · appDataFolder)
    ============================================================ */
-const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file';
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 let driveToken = '';
+let driveUser = null;   // 登入的 Google 帳號(name/email/picture)
 let driveTokenClient = null;
 let drivePushT = null;
 let driveFolderId = '';   // Drive 可見資料夾「CardSnap 名片」id
@@ -926,6 +927,40 @@ let syncSignal = null;   // 逾時中止用
 
 function googleClientId() {
   return (window.CARDSNAP_CONFIG && window.CARDSNAP_CONFIG.googleClientId) || '';
+}
+
+/* ---------- navbar:時鐘 / 登入者 / 登出 ---------- */
+function updateClock() {
+  const el = $('#navClock'); if (!el) return;
+  const d = new Date(), days = ['日', '一', '二', '三', '四', '五', '六'];
+  const p = n => String(n).padStart(2, '0');
+  el.textContent = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (週${days[d.getDay()]}) ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+async function fetchDriveUser() {
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + driveToken } });
+    if (r.ok) { driveUser = await r.json(); renderNavUser(); }
+  } catch (e) {}
+}
+function renderNavUser() {
+  const el = $('#navUser'); if (!el) return;
+  if (driveUser && driveToken) {
+    const name = driveUser.name || driveUser.email || '使用者';
+    const ava = driveUser.picture
+      ? `<img class="nu-ava" src="${esc(driveUser.picture)}" alt="" referrerpolicy="no-referrer">`
+      : `<span class="nu-ava nu-ava-txt">${esc((name[0] || '?').toUpperCase())}</span>`;
+    el.innerHTML = `${ava}<span class="nu-name" title="${esc(driveUser.email || '')}">${esc(name)}</span>` +
+      `<button class="nu-logout" id="navLogout" title="登出">登出</button>`;
+    const lo = $('#navLogout'); if (lo) lo.onclick = logout;
+  } else {
+    el.innerHTML = `<button class="nu-login" id="navLogin">登入</button>`;
+    const li = $('#navLogin'); if (li) li.onclick = signInAndSync;
+  }
+}
+function logout() {
+  try { if (driveToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(driveToken, () => {}); } catch (e) {}
+  driveToken = ''; driveUser = null;
+  setSyncState('idle'); renderNavUser(); toast('已登出');
 }
 
 function setSyncState(s) {
@@ -942,7 +977,7 @@ function initDrive() {
     client_id: googleClientId(),
     scope: GOOGLE_SCOPE,
     callback: (resp) => {
-      if (resp && resp.access_token) { driveToken = resp.access_token; doSync(); }
+      if (resp && resp.access_token) { driveToken = resp.access_token; fetchDriveUser(); doSync(); }
       else { setSyncState('idle'); toast('Google 授權未完成'); }
     },
   });
@@ -1301,3 +1336,5 @@ if (!localStorage.getItem('cardsnap.loginSeen')) showLogin();
 if (settings.pinHash) showLock();
 initDrive();
 initSyncStatus();
+updateClock(); setInterval(updateClock, 30000);
+renderNavUser();
