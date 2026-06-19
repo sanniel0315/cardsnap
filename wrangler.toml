@@ -3,3 +3,8 @@ compatibility_date = "2025-06-01"
 
 [assets]
 directory = "./dist"
+
+# 自訂網域:部署時自動建立 DNS + HTTPS(網域需在同一 Cloudflare 帳號)
+[[routes]]
+pattern = "name-car-box.com"
+custom_domain = true
