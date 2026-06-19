@@ -1,0 +1,34 @@
+name: Test and Deploy to Netlify
+
+# push 到 main → 跑測試 → 戳版本 → 用 Netlify CLI 直接部署(不靠 Netlify 自家建置,免 build 分鐘)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint + 單元測試(18 項)
+        run: npm run ci
+
+      - name: 戳記 SW 版本（commit SHA)
+        run: bash scripts/stamp-version.sh "${GITHUB_SHA}"
+
+      - name: 部署到 Netlify（含 functions)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npm install -g netlify-cli@17
+          netlify deploy --dir=. --functions=netlify/functions --prod \
+            --message "CI deploy ${GITHUB_SHA::7}"
