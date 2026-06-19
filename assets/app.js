@@ -129,11 +129,16 @@ function normalizeRemoteFields(f) {
   out.phone = phones.length ? phones[0].value : (f.phone || '');
   return (out.name || out.company || out.phone || out.email) ? out : null;
 }
+function normEndpoint(u) {
+  u = (u || '').trim().replace(/\/+$/, '');
+  if (u && !/\/ocr$/i.test(u)) u += '/ocr';
+  return u;
+}
 async function remoteOCR(source) {
   const b64 = await srcToBase64(source);
   const langHints = OCR_LANG_HINTS[settings.ocrLang] || ['zh-Hant', 'en'];
   const custom = settings.ocrEndpoint && settings.ocrEndpoint.trim();
-  const url = custom || CLOUD_OCR_URL;
+  const url = custom ? normEndpoint(custom) : CLOUD_OCR_URL;
   const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 35000);
   try {
@@ -1065,7 +1070,7 @@ function applySettings() {
   settings.ocrLang = $('#set_ocr').value;
   settings.fontSize = $('#set_font').value;
   settings.cloudOcr = $('#set_cloud').checked;
-  settings.ocrEndpoint = $('#set_endpoint').value.trim();
+  settings.ocrEndpoint = normEndpoint($('#set_endpoint').value);
   settings.drivePhotos = $('#set_drivephotos').checked;
   settings.forceEndpoint = $('#set_force').checked;
   cloudOcrDown = false;
