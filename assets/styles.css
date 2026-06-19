@@ -424,3 +424,37 @@ body.fs-sm .c-sub{font-size:12.5px}
 
 /* OCR 端點測試鈕 */
 .endpoint-test{align-self:flex-start;margin-top:-4px}
+
+/* ============================================================
+   登入畫面(UI)
+   ============================================================ */
+.login-screen{position:fixed;inset:0;z-index:210;display:grid;place-items:start center;overflow-y:auto;
+  background:
+    radial-gradient(620px 420px at 88% -8%,rgba(20,184,166,.14),transparent 60%),
+    radial-gradient(560px 400px at 4% 4%,rgba(14,165,233,.12),transparent 60%),
+    var(--bg);
+  padding:max(32px,7vh) 20px 40px}
+.login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);
+  border-radius:22px;box-shadow:var(--shadow-lg);padding:30px 26px 24px}
+.login-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;color:var(--txt);justify-content:center;margin-bottom:18px}
+.login-brand .logo{width:28px;height:28px}
+.login-title{font-size:23px;font-weight:800;color:var(--txt);margin-bottom:22px}
+.login-field{display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted);margin-bottom:15px}
+.login-field input{background:var(--surface-2);border:1px solid var(--line);color:var(--txt);
+  border-radius:12px;padding:13px 14px;font-size:15px;outline:none;transition:.18s}
+.login-field input::placeholder{color:var(--dim)}
+.login-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring);background:var(--surface)}
+.login-row{display:flex;align-items:center;justify-content:space-between;margin:-2px 0 18px}
+.login-remember{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--muted);cursor:pointer}
+.login-remember input{width:16px;height:16px;accent-color:var(--accent)}
+.login-continue{width:100%;padding:14px;font-size:16px;border-radius:999px}
+.login-or{display:flex;align-items:center;gap:12px;color:var(--dim);font-size:13px;margin:18px 0}
+.login-or::before,.login-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.login-social{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  background:var(--surface);border:1px solid var(--line);color:var(--txt);border-radius:999px;
+  padding:12px;font-size:14.5px;font-weight:600;cursor:pointer;margin-bottom:10px;transition:.16s;font-family:inherit}
+.login-social:hover{border-color:var(--accent-ring);background:var(--surface-2)}
+.login-social .ls-ic{width:20px;height:20px;display:grid;place-items:center}
+.login-social .ls-ic svg{width:20px;height:20px}
+.login-foot{text-align:center;font-size:13px;color:var(--muted);margin-top:14px;line-height:1.8}
+.login-dot{margin:0 8px;color:var(--dim)}

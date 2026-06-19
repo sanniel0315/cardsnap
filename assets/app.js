@@ -1078,6 +1078,9 @@ function applySettings() {
   toast('設定已儲存');
 }
 
+function showLogin() { const o = $('#loginScreen'); if (o) o.classList.remove('hidden'); }
+function closeLogin() { try { localStorage.setItem('cardsnap.loginSeen', '1'); } catch (e) {} const o = $('#loginScreen'); if (o) o.classList.add('hidden'); }
+
 function openModal(sel) { $(sel).classList.remove('hidden'); }
 function closeModal(sel) { if (sel === '#captureModal') stopCamera(); $(sel).classList.add('hidden'); }
 let toastT;
@@ -1163,6 +1166,20 @@ function bind() {
     if (!confirm('再次確認:真的要刪除全部名片?')) return;
     contacts = []; save(); render(); updateStorage(); toast('已清空全部資料');
   };
+  // 登入畫面(UI)
+  if ($('#loginContinue')) {
+    $('#loginContinue').onclick = () => {
+      const e = ($('#loginEmail').value || '').trim();
+      if (!e) { toast('請輸入電子郵件或電話號碼'); return; }
+      closeLogin(); toast('歡迎使用 CardSnap');
+    };
+    $('#loginGoogle').onclick = () => { closeLogin(); if (typeof signInAndSync === 'function') signInAndSync(); };
+    $('#loginMs').onclick = () => toast('Microsoft 登入即將推出');
+    $('#loginSso').onclick = () => toast('SSO 登入即將推出');
+    $('#loginForgot').onclick = () => toast('密碼重設即將推出');
+    $('#loginSignup').onclick = () => toast('註冊功能即將推出');
+    $('#loginSkip').onclick = () => closeLogin();
+  }
   $('#lockBtn').onclick = tryUnlock;
   $('#lockInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 
@@ -1204,6 +1221,7 @@ applyFontSize();
 bind();
 { const ss = $('#sortSelect'); if (ss) ss.value = sortBy; }
 render();
+if (!localStorage.getItem('cardsnap.loginSeen')) showLogin();
 if (settings.pinHash) showLock();
 initDrive();
 initSyncStatus();
