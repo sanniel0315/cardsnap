@@ -1,10 +1,5 @@
 name = "cardsnap"
 compatibility_date = "2025-06-01"
-workers_dev = true
 
 [assets]
 directory = "./dist"
-
-[[routes]]
-pattern = "name-car-box.com"
-custom_domain = true
