@@ -458,3 +458,34 @@ body.fs-sm .c-sub{font-size:12.5px}
 .login-social .ls-ic svg{width:20px;height:20px}
 .login-foot{text-align:center;font-size:13px;color:var(--muted);margin-top:14px;line-height:1.8}
 .login-dot{margin:0 8px;color:var(--dim)}
+
+/* ============================================================
+   桌面寬螢幕:表格檢視
+   ============================================================ */
+@media (min-width: 980px) {
+  #app { max-width: 1120px; padding-bottom: 80px; }
+  .list.as-table { padding: 8px 20px 24px; display: block; }
+}
+.ctable { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; font-size: 14px; }
+.ctable thead th { text-align: left; font-size: 12px; color: var(--dim); font-weight: 700; letter-spacing: .4px;
+  padding: 12px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ctable thead th.sortable { cursor: pointer; }
+.ctable thead th.sortable:hover { color: var(--accent); }
+.ctable td { padding: 11px 14px; border-bottom: 1px solid var(--line-2); color: var(--txt); vertical-align: middle;
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctable tbody tr:last-child td { border-bottom: none; }
+.ctable tbody tr { cursor: pointer; transition: background .12s; }
+.ctable tbody tr:hover { background: var(--accent-soft); }
+.ctable tbody tr.selected { background: var(--accent-soft); }
+.ctable .t-name { font-weight: 700; }
+.ctable .t-mail a, .ctable td a { color: var(--accent); text-decoration: none; }
+.ctable .t-date { color: var(--dim); font-size: 13px; white-space: nowrap; }
+.ctable .t-ava { width: 44px; }
+.ctable .tav { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; display: block; }
+.ctable .tav-txt { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; background: var(--grad); }
+.ctable .t-sel { width: 38px; }
+.ctable .t-sel .sel-box { width: 20px; height: 20px; border: 1.5px solid var(--line); border-radius: 6px; display: inline-grid; place-items: center; color: transparent; }
+body.select-mode .ctable tbody tr.selected .sel-box { background: var(--accent); border-color: var(--accent); color: #fff; }
+body:not(.select-mode) .ctable .t-sel { visibility: hidden; }
+.ctable .sel-box svg { width: 13px; height: 13px; }

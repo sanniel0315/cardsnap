@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = 'cardsnap.contacts.v1';
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -557,6 +557,12 @@ function render() {
   });
 
   const list = $('#list');
+  if (window.matchMedia('(min-width: 980px)').matches) renderTable(list, data);
+  else renderCards(list, data);
+}
+
+function renderCards(list, data) {
+  list.classList.remove('as-table');
   list.innerHTML = data.map(c => `
     <div class="contact ${selected.has(c.id) ? 'selected' : ''}" data-id="${c.id}">
       <div class="sel-box">${CHECK_SVG}</div>
@@ -572,9 +578,64 @@ function render() {
       </div>
     </div>`).join('');
   $$('#list .contact').forEach(el => el.onclick = () => {
-    if (selectMode) toggleSelect(el.dataset.id);
-    else openDetail(el.dataset.id);
+    if (selectMode) toggleSelect(el.dataset.id); else openDetail(el.dataset.id);
   });
+}
+
+function renderTable(list, data) {
+  list.classList.add('as-table');
+  const arrow = k => sortBy === k ? ' ▾' : '';
+  const rows = data.map(c => `
+    <tr class="trow ${selected.has(c.id) ? 'selected' : ''}" data-id="${c.id}">
+      <td class="t-sel"><span class="sel-box">${CHECK_SVG}</span></td>
+      <td class="t-ava">${c.image ? `<img class="tav" src="${c.image}" alt="">` : `<span class="tav tav-txt">${esc(initials(c.name))}</span>`}</td>
+      <td class="t-name">${esc(c.name || '未命名')}${c.favorite ? ' <span class="star">★</span>' : ''}</td>
+      <td>${esc(c.company || '')}</td>
+      <td>${esc(c.title || '')}</td>
+      <td class="t-mail">${c.email ? `<a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a>` : ''}</td>
+      <td>${c.phone ? `<a href="tel:${esc(c.phone)}" onclick="event.stopPropagation()">${esc(c.phone)}</a>` : ''}</td>
+      <td>${c.group ? `<span class="c-group">${esc(c.group)}</span>` : ''}</td>
+      <td class="t-date">${fmtDate(c.created)}</td>
+    </tr>`).join('');
+  list.innerHTML = `<table class="ctable"><thead><tr>
+    <th class="t-sel"></th><th></th>
+    <th class="sortable" data-sort="name">姓名${arrow('name')}</th>
+    <th class="sortable" data-sort="company">公司${arrow('company')}</th>
+    <th>職位</th><th>Email</th><th>電話</th><th>分組</th>
+    <th class="sortable" data-sort="recent">建檔${arrow('recent')}</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  $$('#list .trow').forEach(el => el.onclick = () => {
+    if (selectMode) toggleSelect(el.dataset.id); else openDetail(el.dataset.id);
+  });
+  $$('#list thead th.sortable').forEach(th => th.onclick = () => {
+    sortBy = th.dataset.sort; const ss = $('#sortSelect'); if (ss) ss.value = sortBy; render();
+  });
+}
+
+/* ---------- 合併重複名片 ---------- */
+function mergeInto(a, b) {
+  ['company', 'title', 'email', 'website', 'address', 'fax', 'taxId', 'group', 'note'].forEach(k => { if (!a[k] && b[k]) a[k] = b[k]; });
+  if (!a.image && b.image) a.image = b.image;
+  a.images = [...new Set([...(a.images || []), ...(b.images || [])])].filter(Boolean);
+  a.phones = a.phones || [];
+  const seen = new Set(a.phones.map(p => (p.value || '').replace(/\D/g, '')));
+  (b.phones || []).forEach(p => { const d = (p.value || '').replace(/\D/g, ''); if (d && !seen.has(d)) { a.phones.push(p); seen.add(d); } });
+  if (a.phones.length) a.phone = a.phones[0].value;
+  a.tags = [...new Set([...(a.tags || []), ...(b.tags || [])])];
+  a.favorite = a.favorite || b.favorite;
+}
+function mergeDuplicates() {
+  const before = contacts.length;
+  const seen = new Map(); const out = [];
+  for (const c of contacts) {
+    const k = contactKey(c);
+    if (k && seen.has(k)) mergeInto(seen.get(k), c);
+    else { out.push(c); if (k) seen.set(k, c); }
+  }
+  const removed = before - out.length;
+  if (removed <= 0) { toast('沒有發現重複名片'); return; }
+  if (!confirm(`找到 ${removed} 筆重複,合併保留一張(欄位會互補)?`)) return;
+  contacts = out; save(); render(); toast(`已合併 ${removed} 筆重複`);
 }
 
 /* ============================================================
@@ -1205,6 +1266,7 @@ function bind() {
 
   // 多選批次
   $('#btnSelect').onclick = () => selectMode ? exitSelect() : enterSelect();
+  if ($('#btnDedup')) $('#btnDedup').onclick = mergeDuplicates;
   $('#selAll').onclick = selectAll;
   $('#selTag').onclick = batchTag;
   $('#selExport').onclick = batchExport;
@@ -1222,6 +1284,12 @@ function bind() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
+
+let _rzT, _wasDesk = window.matchMedia('(min-width: 980px)').matches;
+window.addEventListener('resize', () => {
+  clearTimeout(_rzT);
+  _rzT = setTimeout(() => { const d = window.matchMedia('(min-width: 980px)').matches; if (d !== _wasDesk) { _wasDesk = d; render(); } }, 150);
+});
 
 /* ---------- init ---------- */
 sortBy = settings.sortBy || 'recent';
