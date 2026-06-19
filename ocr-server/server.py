@@ -1,11 +1,11 @@
 """
 CardSnap 本機 GPU OCR 伺服器
   - 接收 App 傳來的名片影像(base64 JPEG)
-  - 呼叫本機 Ollama 的視覺模型(預設 qwen2.5vl:32b)做 OCR + 結構化抽取
+  - 呼叫本機 Ollama 的視覺模型(預設 qwen2.5vl:7b)做 OCR + 結構化抽取
   - 回傳 { text, fields }  fields = {name, company, title, phones[], email, website, address, fax, taxId, note}
 
 啟動:  run.bat   (或  python -m uvicorn server:app --host 0.0.0.0 --port 8000)
-需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:32b
+需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:7b
 """
 import os, json, base64, re, traceback
 import requests
@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:32b")
+MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:7b")
 
 app = FastAPI(title="CardSnap Local OCR")
 app.add_middleware(
@@ -26,11 +26,11 @@ PROMPT = (
     "你是名片資訊擷取引擎。請辨識這張名片影像,輸出「繁體中文」的 JSON,只輸出 JSON,不要說明。\n"
     "鍵值固定為:\n"
     '{ "name": 姓名, "company": 公司全名, "title": 職稱, '
-    '"phones": [ {"label":"手機/市話/傳真", "value":"號碼"} ], '
+    '"phones": [ {"label":"手機 或 市話(二選一)", "value":"號碼"} ], '
     '"email": 電子郵件, "website": 網站, "address": 完整地址, '
     '"fax": 傳真號碼, "taxId": 統一編號(8碼數字), "note": 其他備註, '
     '"raw_text": 名片上所有文字原樣 }\n'
-    "找不到的欄位留空字串或空陣列。手機為 09 開頭;市話含區碼;傳真歸到 fax 也可放入 phones。"
+    "找不到的欄位留空字串或空陣列。手機=09或行動電話;市話=含區碼室內電話;傳真號碼只放到 fax 欄不要放進 phones。note 請用單一字串(多項用、分隔),不要用陣列。"
 )
 
 def call_ollama(b64: str) -> dict:
@@ -56,13 +56,33 @@ def call_ollama(b64: str) -> dict:
 
 def normalize(d: dict) -> dict:
     d = d or {}
+    fax = d.get("fax", "") or ""
     phones = []
     for p in (d.get("phones") or []):
         if isinstance(p, str):
-            phones.append({"label": "電話", "value": p})
-        elif isinstance(p, dict) and (p.get("value") or p.get("number")):
-            phones.append({"label": p.get("label") or p.get("type") or "電話",
-                           "value": p.get("value") or p.get("number")})
+            val, lab = p, ""
+        elif isinstance(p, dict):
+            val = p.get("value") or p.get("number") or ""
+            lab = p.get("label") or p.get("type") or ""
+        else:
+            continue
+        if not val:
+            continue
+        digits = re.sub(r"\D", "", val)
+        if "傳真" in lab or "fax" in lab.lower():
+            if not fax:
+                fax = val
+            continue
+        if digits.startswith("09") or "手機" in lab or "行動" in lab:
+            lab = "手機"
+        elif lab not in ("手機", "市話"):
+            lab = "市話"
+        phones.append({"label": lab, "value": val})
+
+    note = d.get("note", "") or ""
+    if isinstance(note, list):
+        note = "、".join(str(x) for x in note if x)
+
     fields = {
         "name": d.get("name", "") or "",
         "company": d.get("company", "") or "",
@@ -71,9 +91,9 @@ def normalize(d: dict) -> dict:
         "email": d.get("email", "") or "",
         "website": d.get("website", "") or "",
         "address": d.get("address", "") or "",
-        "fax": d.get("fax", "") or "",
+        "fax": fax,
         "taxId": d.get("taxId", d.get("tax_id", "")) or "",
-        "note": d.get("note", "") or "",
+        "note": note,
     }
     text = d.get("raw_text") or "\n".join(
         v for v in [fields["name"], fields["company"], fields["title"],
