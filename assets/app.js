@@ -437,10 +437,13 @@ async function importFromFile(file) {
       parsed = parseCSV(text);
     }
     if (!parsed.length) { toast('檔案沒有可匯入的名片'); return; }
-    const incoming = parsed.map(p => ({
-      id: p.id || uid(), created: p.created || Date.now(), updated: p.updated || p.created || Date.now(), favorite: !!p.favorite, image: p.image || '',
-      name: p.name || '', company: p.company || '', title: p.title || '', phone: p.phone || '',
+    const incoming = parsed.map(p => migrate({
+      id: p.id || uid(), created: p.created || Date.now(), updated: p.updated || p.created || Date.now(), favorite: !!p.favorite,
+      image: p.image || '', images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []),
+      name: p.name || '', company: p.company || '', title: p.title || '',
+      phone: p.phone || '', phones: Array.isArray(p.phones) ? p.phones : undefined,
       email: p.email || '', website: p.website || '', address: p.address || '',
+      fax: p.fax || '', taxId: p.taxId || p.tax_id || '', group: p.group || '',
       tags: Array.isArray(p.tags) ? p.tags : (p.tags ? String(p.tags).split(/[;,，、]/).map(t => t.trim()).filter(Boolean) : []),
       note: p.note || ''
     }));

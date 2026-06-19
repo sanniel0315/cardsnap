@@ -1,0 +1,1281 @@
+[
+ {
+  "name": "林志鴻",
+  "company": "瞻博網路有限公司",
+  "title": "技術經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "+886910160417"
+   },
+   {
+    "label": "市話",
+    "value": "+886221756336"
+   }
+  ],
+  "phone": "+886910160417",
+  "fax": "+886221756301",
+  "email": "mchlin@juniper.net",
+  "website": "",
+  "address": "壹北市 南京東路二段167號5樓-1",
+  "group": "juniper",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1730764800000,
+  "updated": 1730764800000
+ },
+ {
+  "name": "連益系統-陳胤儒",
+  "company": "連益系統工程有限公司 Lien-yi System&Engineering Co.,Ltd",
+  "title": "",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0912133511"
+   },
+   {
+    "label": "市話",
+    "value": "0222542920"
+   }
+  ],
+  "phone": "0912133511",
+  "fax": "0281927003",
+  "email": "QQ96357@gmail.com",
+  "website": "",
+  "address": "新北市 板橋區懷德街201巷20號1樓 22045",
+  "group": "",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1728345600000,
+  "updated": 1728345600000
+ },
+ {
+  "name": "兆徠-業務經理-林雨鴻",
+  "company": "兆徠科技股份有限公司 ZuLITE Corporation",
+  "title": "Sales Manager",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0937523372"
+   },
+   {
+    "label": "市話",
+    "value": "886287914599"
+   }
+  ],
+  "phone": "0937523372",
+  "fax": "886287911077",
+  "email": "clark@zulite.com.tw",
+  "website": "www.zulite.com.tw",
+  "address": "台北市 内湖區行愛路77巷69號2樓 114",
+  "group": "",
+  "note": "暱稱:Clark Lin",
+  "tags": [],
+  "favorite": false,
+  "created": 1728345600000,
+  "updated": 1728345600000
+ },
+ {
+  "name": "VCA-陳灝",
+  "company": "敦誠國際有限公司 敦誠國際有限公司",
+  "title": "亞太區商務拓展經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0921070406"
+   },
+   {
+    "label": "市話",
+    "value": "0229770075"
+   }
+  ],
+  "phone": "0921070406",
+  "fax": "",
+  "email": "hans.chen@vcatechnology.com",
+  "website": "",
+  "address": "新北市 三重區河邊北街100巷35號6樓 241",
+  "group": "",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1724630400000,
+  "updated": 1724630400000
+ },
+ {
+  "name": "CECI-電機工程部-陳威佑",
+  "company": "台灣世曦工程顧問股份有限公司",
+  "title": "電機工程部 工程師",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0989850280"
+   },
+   {
+    "label": "市話",
+    "value": "0287973567,,3012"
+   }
+  ],
+  "phone": "0989850280",
+  "fax": "",
+  "email": "wayne.chen@ceci.com.tw",
+  "website": "http://www.ceci.com.tw/",
+  "address": "台北市 內湖區陽光街323號4樓 114710",
+  "group": "CECI",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1721347200000,
+  "updated": 1721347200000
+ },
+ {
+  "name": "CECI- 智慧系統部-工程師鄭丞皓",
+  "company": "台灣世曦工程顧問股份有限公司 台灣世曦工程顧問股份有限公司",
+  "title": "智慧系統部 交通技師",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0956873785"
+   },
+   {
+    "label": "市話",
+    "value": "0287973567,,3331"
+   }
+  ],
+  "phone": "0956873785",
+  "fax": "",
+  "email": "chcheng@ceci.com.tw",
+  "website": "",
+  "address": "台北市 內湖區陽光街323號6樓 114710",
+  "group": "CECI",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1721347200000,
+  "updated": 1721347200000
+ },
+ {
+  "name": "高誌宏",
+  "company": "中華智慧運輸協會 Intelligent Transportation Society of TAIWAN",
+  "title": "副主委",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "6597415881"
+   },
+   {
+    "label": "手機",
+    "value": "886912615881"
+   }
+  ],
+  "phone": "6597415881",
+  "fax": "",
+  "email": "kevin.kao@ptvgroup.com",
+  "website": "",
+  "address": "",
+  "group": "",
+  "note": "暱稱:Kevin Kao",
+  "tags": [],
+  "favorite": false,
+  "created": 1721260800000,
+  "updated": 1721260800000
+ },
+ {
+  "name": "特奇新科技機-余基雄",
+  "company": "特奇新科機股份有限公司",
+  "title": "經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0905901316"
+   },
+   {
+    "label": "市話",
+    "value": "0289352862"
+   }
+  ],
+  "phone": "0905901316",
+  "fax": "",
+  "email": "leo@techxim.com.tw",
+  "website": "www.techxim.com.tw",
+  "address": "台北市 文山區辛亥路4段130巷3號7樓之4 116",
+  "group": "",
+  "note": "暱稱:Leo Yu",
+  "tags": [],
+  "favorite": false,
+  "created": 1718668800000,
+  "updated": 1718668800000
+ },
+ {
+  "name": "逸達創意科技-陳清埕",
+  "company": "逸達創意科技有限公司",
+  "title": "資深業務經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "+886918075000"
+   },
+   {
+    "label": "市話",
+    "value": "+886266040658"
+   }
+  ],
+  "phone": "+886918075000",
+  "fax": "",
+  "email": "jack.chen@etarget.biz",
+  "website": "",
+  "address": "新北市 新莊區中原東路123號3樓 242045",
+  "group": "",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1718236800000,
+  "updated": 1718236800000
+ },
+ {
+  "name": "程俊硯",
+  "company": "台灣松下銷售股份有限公司",
+  "title": "系統解決方案本部 高級系統工程師",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0988852950"
+   },
+   {
+    "label": "市話",
+    "value": "0223956658,,6134"
+   }
+  ],
+  "phone": "0988852950",
+  "fax": "0223956368",
+  "email": "cheng.sim@tw.panasonic.com",
+  "website": "",
+  "address": "台北市 中正區八德路一段55號6樓",
+  "group": "Panasonic",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1715212800000,
+  "updated": 1715212800000
+ },
+ {
+  "name": "巫清煌",
+  "company": "交通部公路總局 第一區養護工程處",
+  "title": "交通管理及控制中心主任",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0928214379"
+   },
+   {
+    "label": "市話",
+    "value": "0286875317"
+   }
+  ],
+  "phone": "0928214379",
+  "fax": "0286875108",
+  "email": "lacf829@thb.gov.tw",
+  "website": "",
+  "address": "23867 新北市樹林區中正路 212 號",
+  "group": "",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1686873600000,
+  "updated": 1686873600000
+ },
+ {
+  "name": "聚碩科技-連偉廷",
+  "company": "聚碩科技股份有限公司",
+  "title": "業務主任",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0911456895"
+   },
+   {
+    "label": "市話",
+    "value": "0287978260,2603"
+   }
+  ],
+  "phone": "0911456895",
+  "fax": "0287978261",
+  "email": "tonylian@sysage.com.tw",
+  "website": "",
+  "address": "114湖路一段516號10樓",
+  "group": "聚碩科技",
+  "note": "暱稱:Tony Lian",
+  "tags": [],
+  "favorite": false,
+  "created": 1646352000000,
+  "updated": 1646352000000
+ },
+ {
+  "name": "synergies -業務總監-陳雲黃",
+  "company": "美商訊能集思智能科技股份有限公司台灣分公司",
+  "title": "業務總監",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+886910676285"
+   },
+   {
+    "label": "市話",
+    "value": "+886223918885"
+   }
+  ],
+  "phone": "+886910676285",
+  "fax": "",
+  "email": "franco.chen@sis.ai",
+  "website": "www.sis.ai",
+  "address": "10049 台北市中正區北平東路 20 號 10 樓",
+  "group": "SYNERGIS",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1646352000000,
+  "updated": 1646352000000
+ },
+ {
+  "name": "工業技術研究院-智慧電表應用研究室-研究員-鄒玉萍",
+  "company": "緑能與環境研究所-電網與電力電子技術組 工業技術研究院",
+  "title": "智慧電表應用研究室 研究員",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "035912057"
+   },
+   {
+    "label": "市話",
+    "value": "0800458899"
+   }
+  ],
+  "phone": "035912057",
+  "fax": "",
+  "email": "eileen_tsou@itri.org.tw",
+  "website": "www.itri.org.tw",
+  "address": "新竹 縣竹東鎭中興路四段1 95號24館202室 310401",
+  "group": "工業技術研究院",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1635033600000,
+  "updated": 1635033600000
+ },
+ {
+  "name": "工業技術研究院-綠能與環境研究所-電網與電子電力組-陳俊宇博士",
+  "company": "緑能與環境研究所-電網與電力電子技術組 工業技術研究院",
+  "title": "智慧電表應用研究室 經理",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "035915465"
+   },
+   {
+    "label": "市話",
+    "value": "0800458899"
+   }
+  ],
+  "phone": "035915465",
+  "fax": "",
+  "email": "chunyuchen@itri.org.tw",
+  "website": "www.itri.ora.tw",
+  "address": "新竹 縣竹東鎭中興路四段 195號51 館8樓812室 310401",
+  "group": "工業技術研究院",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1635033600000,
+  "updated": 1635033600000
+ },
+ {
+  "name": "陽明海運-資訊管理群-資訊組-經理-葉嘉鵬",
+  "company": "陽明海運股份有限公司",
+  "title": "資訊管理群資訊部 經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0932050165"
+   },
+   {
+    "label": "市話",
+    "value": "078129271"
+   }
+  ],
+  "phone": "0932050165",
+  "fax": "",
+  "email": "samuel.cp.yeh@yangming.com",
+  "website": "",
+  "address": "81243 高雄市小港區新生路999號",
+  "group": "陽明海運",
+  "note": "暱稱:YANG MI NG",
+  "tags": [],
+  "favorite": false,
+  "created": 1630886400000,
+  "updated": 1630886400000
+ },
+ {
+  "name": "台電-基隆營業處-檢驗課長-羅讚賢",
+  "company": "台電基隆區營業處",
+  "title": "基隆區營業處 檢驗謀長",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0224231156,5731"
+   },
+   {
+    "label": "市話",
+    "value": "0910934,315"
+   }
+  ],
+  "phone": "0224231156,5731",
+  "fax": "",
+  "email": "",
+  "website": "ipower.com.tw",
+  "address": "20001 基隆市仁一路 301",
+  "group": "台電",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1630886400000,
+  "updated": 1630886400000
+ },
+ {
+  "name": "雲安電子-CAR好錄-吳建輝",
+  "company": "",
+  "title": "DVR/NVR 數位斡影系統",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0928653,93"
+   },
+   {
+    "label": "市話",
+    "value": "047136669"
+   }
+  ],
+  "phone": "0928653,93",
+  "fax": "047136059",
+  "email": "ch.diy@msa.hinet.net",
+  "website": "www.car360.com.tw",
+  "address": "4路/8路車用行車影像紀錄器 eTag長距離戚應停車場管理系統",
+  "group": "雲安",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1630627200000,
+  "updated": 1630627200000
+ },
+ {
+  "name": "宅電-CEO-Andy-陳青佑",
+  "company": "宅電股份有限公司 SMITH",
+  "title": "Co-Founder & CEO",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+886905931909"
+   },
+   {
+    "label": "市話",
+    "value": "52492786"
+   }
+  ],
+  "phone": "+886905931909",
+  "fax": "",
+  "email": "andychen@chargesmith.com",
+  "website": "",
+  "address": "1F., No.118, Dabei Rd. Shilin Dist., Taipei City, 111 Taiwan",
+  "group": "宅電",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1622505600000,
+  "updated": 1622505600000
+ },
+ {
+  "name": "碩泰網通-網路工程師-張詠鈞",
+  "company": "碩泰網通股份有限公司 Netc@*re",
+  "title": "網路工程師",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0987900,138"
+   },
+   {
+    "label": "市話",
+    "value": "24320279"
+   },
+   {
+    "label": "市話",
+    "value": "+886226575988,303"
+   }
+  ],
+  "phone": "0987900,138",
+  "fax": "+886226575827",
+  "email": "jim.chang@netcore.com.tw",
+  "website": "www.netcore.com.tw",
+  "address": "內湖區瑞光路578號3樓",
+  "group": "碩泰",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "泓格科技-行銷業務-林吟如",
+  "company": "泓格科技股份有限公司 I CP DAS CO., LTD.",
+  "title": "行銷業務處 副理",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+886289192220"
+   }
+  ],
+  "phone": "+886289192220",
+  "fax": "+8862891922",
+  "email": "grace@icpdas.com",
+  "website": "www.icpdas.com",
+  "address": "新店",
+  "group": "泓格科技",
+  "note": "暱稱:Grace Lin",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "神通資訊-智慧城市-郭南廷",
+  "company": "神通資訊科技股份有限公司",
+  "title": "智慧城市業務處 業務副理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0922999637"
+   },
+   {
+    "label": "市話",
+    "value": "0226576666,6617"
+   }
+  ],
+  "phone": "0922999637",
+  "fax": "0226578118",
+  "email": "casperting@mitac.com.tw",
+  "website": "www.mitac.com.tw",
+  "address": "1 1 吶湖區堤頂大道二段 187號",
+  "group": "神通資訊",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "NTT-電信業務部-業務-陳勇順",
+  "company": "台灣恩悌悌系統股份有限公司(統編86383738)",
+  "title": "業務部 資深業務經理 · 電信業務處",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0930896981"
+   },
+   {
+    "label": "市話",
+    "value": "0221713374"
+   }
+  ],
+  "phone": "0930896981",
+  "fax": "",
+  "email": "johnson.chen@global.ntt",
+  "website": "",
+  "address": "10571 台北市松山區 南京東路五段1 88號14樓",
+  "group": "NTT",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "台灣愛立信-工程-網路部-陳嘉禹",
+  "company": "台灣愛立信股份有限公司",
+  "title": "現場服務營運處 工程師",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0900232673"
+   },
+   {
+    "label": "市話",
+    "value": "0277002000"
+   },
+   {
+    "label": "市話",
+    "value": "0277002079"
+   }
+  ],
+  "phone": "0900232673",
+  "fax": "0277385812",
+  "email": "zack.chen@ericsson.com",
+  "website": "www.ercsson.com",
+  "address": "22063 新北市板橋區遠東路 1 號 11 樓",
+  "group": "台灣愛立信",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "凌華-ADLINK-顧 玉",
+  "company": "凌華科技股份有限公司 ADLINK",
+  "title": "",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0282265877*8836"
+   },
+   {
+    "label": "市話",
+    "value": "0936622142"
+   },
+   {
+    "label": "市話",
+    "value": "0282265729"
+   }
+  ],
+  "phone": "0282265877*8836",
+  "fax": "",
+  "email": "brant.ku@adlinktech.com",
+  "website": "",
+  "address": "235 新北市中和區建一路 186號13樓之3",
+  "group": "ADLINK",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "思納捷-莊棨 博士",
+  "company": "思納捷科技股份有限公司",
+  "title": "總經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0934150717"
+   },
+   {
+    "label": "市話",
+    "value": "0277134828,105"
+   }
+  ],
+  "phone": "0934150717",
+  "fax": "0227130867",
+  "email": "polon@insynerger.com",
+  "website": "",
+  "address": "10574 台北市松山區民生東路四段 133 號 3 F 之 9",
+  "group": "思納捷",
+  "note": "暱稱:Polon Chuang",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "威京-資訊處-副理-林建宏",
+  "company": "中華工程股份有限公司 威京總部集團",
+  "title": "資訊處 副理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0988916723"
+   },
+   {
+    "label": "市話",
+    "value": "0287876249"
+   }
+  ],
+  "phone": "0988916723",
+  "fax": "0287876955",
+  "email": "steve.lin@bes.com.tw",
+  "website": "www.bes.com.tw",
+  "address": "東興路 12 號威京大樓 6 樓",
+  "group": "威京",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621555200000,
+  "updated": 1621555200000
+ },
+ {
+  "name": "中衛環保-專案經理-楊淨菡",
+  "company": "中衡環保科技股份有限公司 chase",
+  "title": "專案經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0905268422"
+   }
+  ],
+  "phone": "0905268422",
+  "fax": "",
+  "email": "cleanawayir@chase.com.tw",
+  "website": "",
+  "address": "10055 台北市中正區仁愛路二段7-1號5樓",
+  "group": "中衛環保",
+  "note": "暱稱:Jinghan Yang",
+  "tags": [],
+  "favorite": false,
+  "created": 1621382400000,
+  "updated": 1621382400000
+ },
+ {
+  "name": "弘潔-品保課-課長-曾語柔",
+  "company": "弘潔科技股份有限公司 Hung Jie Technoeogy",
+  "title": "品保部 課長",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0910610362"
+   },
+   {
+    "label": "市話",
+    "value": "+88635970086,1771"
+   }
+  ],
+  "phone": "0910610362",
+  "fax": "+88635970451",
+  "email": "michelle_tseng@hungjie.com.tw",
+  "website": "",
+  "address": "9 303-51 新竹縣湖口鄉光復南路39號",
+  "group": "弘潔",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621382400000,
+  "updated": 1621382400000
+ },
+ {
+  "name": "弘潔-行政部-資訊課-工程師-黃舒曼",
+  "company": "弘潔科技股份有限公司 Hung Jie Technoeog)y Cotr ' PO, Tratiiott",
+  "title": "行政部/資訊課 工程師",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+88635970086,2418"
+   }
+  ],
+  "phone": "+88635970086,2418",
+  "fax": "+88636223088",
+  "email": "emi13lhuang@hungjie.com.tw",
+  "website": "",
+  "address": "303-51 新竹縣湖口鄉光復南路39號 303-51 新竹縣湖口鄉光復北路12號3樓",
+  "group": "弘潔",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621382400000,
+  "updated": 1621382400000
+ },
+ {
+  "name": "萬海航運-碼頭事業部-譚博元",
+  "company": "萬海航運股份有限公司 因為萬海·世界很近",
+  "title": "碼頭事業部場務一課",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0225677961,6333"
+   }
+  ],
+  "phone": "0225677961,6333",
+  "fax": "0225622221",
+  "email": "kenny_tan@wanhai.com",
+  "website": "",
+  "address": "1041 7 松江路 1 36 號 10 樓",
+  "group": "萬海航運",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621382400000,
+  "updated": 1621382400000
+ },
+ {
+  "name": "台達電子-大型企業事業-專案經理-林大慶",
+  "company": "台達電子工業股份有限公司",
+  "title": "大型企業事業開發 專案經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0932908957"
+   },
+   {
+    "label": "市話",
+    "value": "0287972088,5585"
+   }
+  ],
+  "phone": "0932908957",
+  "fax": "",
+  "email": "robert.tc.lin@deltaww.com",
+  "website": "www.deltaww.com",
+  "address": "11491 台北市內湖區瑞光路186號",
+  "group": "台達電子",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621382400000,
+  "updated": 1621382400000
+ },
+ {
+  "name": "思創盛整合顧問-總經理-林建良",
+  "company": "思創盛整合顧問股份有限公司 Ideapro Systems and Consulting",
+  "title": "總經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0986206399"
+   },
+   {
+    "label": "市話",
+    "value": "0424518228"
+   }
+  ],
+  "phone": "0986206399",
+  "fax": "0424514600",
+  "email": "oheric@ideapro.com.tw",
+  "website": "www.ideapro.com.tw",
+  "address": "407 台中市西屯區上安路 11 巷 46 號",
+  "group": "思創盛整合",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621382400000,
+  "updated": 1621382400000
+ },
+ {
+  "name": "東華大學-資管系教授-陳偉銘博士",
+  "company": "國立東華大學",
+  "title": "資訊管理學系教授",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "038906701"
+   },
+   {
+    "label": "市話",
+    "value": "8906801"
+   }
+  ],
+  "phone": "038906701",
+  "fax": "",
+  "email": "wmchen88@gms.ndhu.edu.tw",
+  "website": "",
+  "address": "花蓮縣壽豐鄉大學路二段一號 974301",
+  "group": "東華大學",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "動見科技-BD-陳建志",
+  "company": "動見科技有限公司 OMNIEYE",
+  "title": "Business Developer",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+886227586850"
+   },
+   {
+    "label": "市話",
+    "value": "+886988362952"
+   }
+  ],
+  "phone": "+886227586850",
+  "fax": "",
+  "email": "zack.chen@theomnieges.com",
+  "website": "",
+  "address": "信義區信義路五段五號乙 A27 室",
+  "group": "動見科技",
+  "note": "暱稱:Zack Chen",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "動見科技-BD-許浩盛",
+  "company": "動見科技有限公司 OMNIEYES",
+  "title": "Business Developer",
+  "phones": [],
+  "phone": "",
+  "fax": "",
+  "email": "scott.hsu@theomnieyes.com",
+  "website": "",
+  "address": "信義區信義路五段5號 2B09 室",
+  "group": "動見科技",
+  "note": "暱稱:Scott,Hsu",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "動見科技-BD-章立融",
+  "company": "動見科技有限公司 OMNIEYE",
+  "title": "Business Developer",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+886227586870"
+   },
+   {
+    "label": "市話",
+    "value": "+886925552523"
+   }
+  ],
+  "phone": "+886227586870",
+  "fax": "",
+  "email": "leila.chang@theomnieges.com",
+  "website": "",
+  "address": "信義區信義路五段五號 2B09 室",
+  "group": "動見科技",
+  "note": "暱稱:Leila Chang",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "故宮-教育策展-科長-吳紹群",
+  "company": "國立汰官博物院 NATIONAL PALACE MUSEUM",
+  "title": "教育展資處 副研究員兼科長",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0266103600,215068432"
+   }
+  ],
+  "phone": "0266103600,215068432",
+  "fax": "0228827177",
+  "email": "diglib@npm.gov.tw",
+  "website": "",
+  "address": "11143 臺北市士林區至善路2段221 號",
+  "group": "故宮博物院",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "航警局-副大隊長-田偉仁",
+  "company": "",
+  "title": "副大隊長",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0936482987"
+   },
+   {
+    "label": "市話",
+    "value": "33982174"
+   }
+  ],
+  "phone": "0936482987",
+  "fax": "",
+  "email": "ts611118@dns.apb.gov.tw",
+  "website": "",
+  "address": "桃園市大園區埔心里航勤北路27號",
+  "group": "航警局",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "上尚-嵌入式連網事業處-經理-林維毅",
+  "company": "科技股份有限公司 ATOP TECHNOLOGIES",
+  "title": "嵌入式連網事業處 行銷業務經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0968386876"
+   },
+   {
+    "label": "市話",
+    "value": "036662590"
+   },
+   {
+    "label": "市話",
+    "value": "035508137,1523"
+   }
+  ],
+  "phone": "0968386876",
+  "fax": "036662593",
+  "email": "tonylin@atop.com.tw",
+  "website": "www.atop.com.tw",
+  "address": "新竹市 新竹科學園區研發二路30號 1 F 30076",
+  "group": "Atop",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "資策會-智慧系統-物聯網系統-主任-蔡瑞塘",
+  "company": "資策會 智慧系統研究所 智慧系統研究所",
+  "title": "主任",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "(02)6607-3168"
+   }
+  ],
+  "phone": "(02)6607-3168",
+  "fax": "0266073507",
+  "email": "tangtsai@iii.org.tw",
+  "website": "www.iii.org.tw.",
+  "address": "台北市 民生東路四段 1 33號7樓 105",
+  "group": "資策會",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "啟碁-產品經理-資深經理-徐琮皓",
+  "company": "啟碁科技股份有限公司",
+  "title": "CH3事業處 資深經理",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "036667799,3178"
+   }
+  ],
+  "phone": "036667799,3178",
+  "fax": "035630789",
+  "email": "alex.shiu@wnc.com.tw",
+  "website": "www.wnc.com.tw",
+  "address": "308 新竹科學園區園區二路20號",
+  "group": "WNC",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "康訊科技-資深經理-王迺禮",
+  "company": "康訊科技股份有限公司",
+  "title": "業務部 資深經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0918041676"
+   },
+   {
+    "label": "市話",
+    "value": "0226981599,253"
+   }
+  ],
+  "phone": "0918041676",
+  "fax": "0226981211",
+  "email": "fred_wang@systech.com.tw",
+  "website": "www.systech.c",
+  "address": "221 Ol 新北市汐止區新台五路一段79號3樓之7",
+  "group": "康訊科技",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "三康訊科技-業務經理-鄒茂藻",
+  "company": "小巨人獎公司標準化獎 康訊科技股份有限公司",
+  "title": "業務部 資深業務經理",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0939540919"
+   },
+   {
+    "label": "市話",
+    "value": "22617253"
+   },
+   {
+    "label": "市話",
+    "value": "0226981599,260"
+   },
+   {
+    "label": "市話",
+    "value": "171121131"
+   }
+  ],
+  "phone": "0939540919",
+  "fax": "0226981211",
+  "email": "nick_tsou@systech.com.tw",
+  "website": "www.systech.c",
+  "address": "221 Ol 新北市汐止區新台五路一段79號3樓之7",
+  "group": "康訊科技",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "帆宣系統-系統整合部-產品經理-紀文祥",
+  "company": "帆宣系統科技股份有限公司 Marketech International Corp",
+  "title": "產品經理 Product Manager",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0975008228"
+   },
+   {
+    "label": "市話",
+    "value": "065055666,86014"
+   }
+  ],
+  "phone": "0975008228",
+  "fax": "065055838",
+  "email": "winsonchi@micb2b.com",
+  "website": "www.micb2b.com",
+  "address": "Taiwan City 74144, Taiwan",
+  "group": "帆宣",
+  "note": "暱稱:Winson Chi",
+  "tags": [],
+  "favorite": false,
+  "created": 1621296000000,
+  "updated": 1621296000000
+ },
+ {
+  "name": "三維人-OEO-余嘉淵",
+  "company": "三維人股份有限公司",
+  "title": "Co-founder & CEO",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+886937260185"
+   }
+  ],
+  "phone": "+886937260185",
+  "fax": "",
+  "email": "oeo@3drens.com",
+  "website": "www.3drens.com",
+  "address": "52796970 (統一編號)",
+  "group": "三維人",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621209600000,
+  "updated": 1621209600000
+ },
+ {
+  "name": "振東整合工程-羅碧珠",
+  "company": "振東整合工程有限公司",
+  "title": "",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0932033065"
+   },
+   {
+    "label": "市話",
+    "value": "0255746135,101"
+   }
+  ],
+  "phone": "0932033065",
+  "fax": "0255746105",
+  "email": "christinlo.jci@gmail.com",
+  "website": "",
+  "address": "103 台北市大同區 華陰街91 號 11樓之5",
+  "group": "振東整合工程",
+  "note": "暱稱:Christi n",
+  "tags": [],
+  "favorite": false,
+  "created": 1621209600000,
+  "updated": 1621209600000
+ },
+ {
+  "name": "振東整合工程-彭英昆",
+  "company": "振東整合工程有限公司",
+  "title": "",
+  "phones": [
+   {
+    "label": "手機",
+    "value": "0963785818"
+   },
+   {
+    "label": "市話",
+    "value": "0255746135,100"
+   }
+  ],
+  "phone": "0963785818",
+  "fax": "0255746105",
+  "email": "kenny.p@pharmeng.com",
+  "website": "",
+  "address": "103 台北市大同區 華陰街91 號 1 1樓之5",
+  "group": "振東整合工程",
+  "note": "暱稱:kenny Peng",
+  "tags": [],
+  "favorite": false,
+  "created": 1621209600000,
+  "updated": 1621209600000
+ },
+ {
+  "name": "萬海航運-資訊-專案經理-徐廉傑",
+  "company": "萬海航運股份有限公司 萬海航運",
+  "title": "資訊科技部 專案經理",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "0225677961,7228"
+   },
+   {
+    "label": "市話",
+    "value": "0225414987"
+   }
+  ],
+  "phone": "0225677961,7228",
+  "fax": "0225418093",
+  "email": "seven_shu@wanhai.com",
+  "website": "",
+  "address": "10417 松江路 136 號 10 樓",
+  "group": "萬海航運",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621209600000,
+  "updated": 1621209600000
+ },
+ {
+  "name": "中冠資訊-電控系統-工程師-林崇揚",
+  "company": "中冠資訊股份有限公司",
+  "title": "電控系統二處 工程師",
+  "phones": [
+   {
+    "label": "市話",
+    "value": "+88678021111,6521"
+   }
+  ],
+  "phone": "+88678021111,6521",
+  "fax": "+88675350110",
+  "email": "ltee@chung.yanglin",
+  "website": "www.icsc.com.tw",
+  "address": "前鎮區 806成功二路88號 1 9樓",
+  "group": "中冠資訊",
+  "note": "",
+  "tags": [],
+  "favorite": false,
+  "created": 1621209600000,
+  "updated": 1621209600000
+ }
+]
