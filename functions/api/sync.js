@@ -23,20 +23,23 @@ export async function onRequestPost({ request, env }) {
     const email = String(who.email).toLowerCase();
 
     const ownerToken = await ownerAccessToken(env, clientId);
-    const folderId = await ensureFolder(ownerToken, 'CardSnap-Users');
-    const fileName = keyFor(email) + '.json';
-    const fileId = await findFile(ownerToken, folderId, fileName);
+    const rootId = await ensureFolder(ownerToken, 'CardSnap-Users');
+    const userFolderId = await ensureSubFolder(ownerToken, rootId, safeName(email)); // 每位使用者一個子資料夾
+    const fileName = 'cardsnap.json';
+    const fileId = await findFile(ownerToken, userFolderId, fileName);
 
-    let remote = [];
-    if (fileId) { const d = await readJson(ownerToken, fileId); remote = Array.isArray(d) ? d : (d.contacts || []); }
+    let remote = [], remoteTomb = [];
+    if (fileId) { const d = await readJson(ownerToken, fileId); if (Array.isArray(d)) { remote = d; } else { remote = d.contacts || []; remoteTomb = d.tombstones || []; } }
 
     const incoming = Array.isArray(body.contacts) ? body.contacts : [];
-    const merged = mergeContacts(remote, incoming);
-    const out = JSON.stringify({ version: 1, updatedAt: Date.now(), owner: email, contacts: merged });
+    const incomingTomb = Array.isArray(body.tombstones) ? body.tombstones : [];
+    const tombs = mergeTombstones(remoteTomb, incomingTomb);
+    const merged = applyTombstones(mergeContacts(remote, incoming), tombs);
+    const out = JSON.stringify({ version: 1, updatedAt: Date.now(), owner: email, contacts: merged, tombstones: tombs });
     if (fileId) await updateFile(ownerToken, fileId, out);
-    else await createFile(ownerToken, folderId, fileName, out);
+    else await createFile(ownerToken, userFolderId, fileName, out);
 
-    return J({ ok: true, count: merged.length, contacts: merged });
+    return J({ ok: true, count: merged.length, contacts: merged, tombstones: tombs });
   } catch (e) {
     return J({ error: String(e && e.message || e) }, 500);
   }
@@ -70,6 +73,16 @@ async function ensureFolder(t, name) {
   const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { ...DA(t), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' }) });
   return (await cr.json()).id;
 }
+async function ensureSubFolder(t, parentId, name) {
+  const q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`);
+  const lr = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: DA(t) });
+  const lj = await lr.json();
+  if (lj.files && lj.files[0]) return lj.files[0].id;
+  const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { ...DA(t), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }) });
+  return (await cr.json()).id;
+}
+function safeName(email) { return String(email).replace(/[\\/:*?"<>|]/g, '_'); }
+
 async function findFile(t, folderId, name) {
   const q = encodeURIComponent(`name='${name}' and '${folderId}' in parents and trashed=false`);
   const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: DA(t) });
@@ -91,7 +104,7 @@ async function updateFile(t, fileId, content) {
   await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, { method: 'PATCH', headers: { ...DA(t), 'Content-Type': 'application/json' }, body: content });
 }
 
-/* ---- 合併(union by key,丟掉亂碼)---- */
+/* ---- 合併(union by key,丟掉亂碼)+ tombstone 刪除傳播 ---- */
 function isJunk(x) {
   if (!x) return true;
   const b = [x.name, x.company, x.title, x.address, x.note, x.website].join(' ');
@@ -99,22 +112,39 @@ function isJunk(x) {
   if (!String(x.name || '').trim() && !String(x.company || '').trim()) return true;
   return false;
 }
-function ckey(c) {
-  const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
-  const phone = (c.phone || (c.phones && c.phones[0] && c.phones[0].value) || '').replace(/[^\d]/g, '');
-  return norm(c.email) || phone || (norm(c.name) + '|' + norm(c.company));
-}
-function keyFor(email) {
-  let h = 0; const s = email; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
-  return 'u' + h.toString(36);
+// 與前端 core.contactKey 對齊:e:email / p:phone數字 / n:name|company
+function tkey(c) {
+  const em = String(c.email || '').trim().toLowerCase();
+  if (em) return 'e:' + em;
+  const ph = String(c.phone || (c.phones && c.phones[0] && c.phones[0].value) || '').replace(/\D/g, '');
+  if (ph) return 'p:' + ph;
+  return 'n:' + (String(c.name || '') + '|' + String(c.company || '')).toLowerCase();
 }
 function mergeContacts(a, b) {
   const map = new Map();
   for (const c of [...(a || []), ...(b || [])]) {
     if (isJunk(c)) continue;
-    const k = ckey(c);
+    const k = tkey(c);
     const prev = map.get(k);
     if (!prev || (Number(c.updated || 0) >= Number(prev.updated || 0))) map.set(k, c);
   }
   return [...map.values()];
+}
+function mergeTombstones(a, b) {
+  const map = new Map();
+  for (const t of [...(a || []), ...(b || [])]) {
+    if (!t || !t.k) continue;
+    const prev = map.get(t.k);
+    if (!prev || Number(t.ts || 0) >= Number(prev.ts || 0)) map.set(t.k, { k: t.k, ts: Number(t.ts || 0) });
+  }
+  // 限制數量,清掉太舊(>180 天)的墓碑
+  const cutoff = Date.now() - 180 * 86400000;
+  return [...map.values()].filter(t => t.ts >= cutoff);
+}
+function applyTombstones(contacts, tombs) {
+  const tm = new Map((tombs || []).map(t => [t.k, Number(t.ts || 0)]));
+  return (contacts || []).filter(c => {
+    const ts = tm.get(tkey(c));
+    return !(ts && ts >= Number(c.updated || 0)); // 墓碑比較新 → 視為已刪
+  });
 }

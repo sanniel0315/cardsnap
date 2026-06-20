@@ -278,8 +278,7 @@
           <span>高精準雲端辨識<small>優先用 Google Vision,失敗自動退回本機</small></span>
           <input id="set_cloud" type="checkbox" class="switch">
         </div>
-        <label>自訂辨識伺服器網址<input id="set_endpoint" type="url" placeholder="https://xxxx.trycloudflare.com/ocr(本機 GPU,選填)"></label>
-        <button id="endpointTest" type="button" class="btn ghost sm endpoint-test">測試連線</button>
+        <label>辨識伺服器網址<small style="display:block;color:#94a3b8;font-weight:400">系統預設,固定不可修改</small><input id="set_endpoint" type="text" readonly tabindex="-1" style="background:#f1f5f9;color:#64748b;cursor:not-allowed"></label>
         <div class="set-toggle">
           <span>只用本機伺服器<small>失敗就停、不退回雲端/本機,確保走地端</small></span>
           <input id="set_force" type="checkbox" class="switch">

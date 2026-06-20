@@ -14,6 +14,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 
 /* ---------- state ---------- */
 let contacts = load();
+let tombstones = loadTombstones();
 let activeTag = null;
 let activeGroup = null;   // null=全部, ''=未分組, 其他=分組名
 let groupTarget = null;
@@ -31,6 +32,7 @@ let autoCapture = true;    // 對齊後自動擷取
 let detectRAF = null, detectCanvas = null, prevGrid = null, stableHits = 0, camReadyAt = 0, autoLocking = false;
 let recaptureSide = 0;     // 重拍/拍背面:0=正面 1=背面
 const SETTINGS_KEY = 'cardsnap.settings';
+const TOMB_KEY = 'cardsnap.tombstones';
 let settings = loadSettings();
 let selectMode = false;    // 多選模式
 let selected = new Set();
@@ -76,6 +78,9 @@ function loadSettings() {
   catch { return def; }
 }
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+function loadTombstones() { try { return JSON.parse(localStorage.getItem(TOMB_KEY)) || []; } catch { return []; } }
+function saveTombstones() { try { localStorage.setItem(TOMB_KEY, JSON.stringify(tombstones)); } catch (e) {} }
+function addTombstone(c) { if (!c) return; try { tombstones.push({ k: contactKey(c), ts: Date.now() }); } catch (e) {} }
 function allGroups() {
   const s = new Set();
   contacts.forEach(c => { if (c.group) s.add(c.group); });
@@ -755,8 +760,9 @@ function selectAll() { filtered().forEach(c => selected.add(c.id)); render(); up
 function batchDelete() {
   if (!selected.size) { toast('尚未選取'); return; }
   if (confirm(`刪除選取的 ${selected.size} 張名片?`)) {
+    contacts.forEach(c => { if (selected.has(c.id)) addTombstone(c); });
     contacts = contacts.filter(c => !selected.has(c.id));
-    save(); exitSelect(); toast('已刪除');
+    saveTombstones(); save(); exitSelect(); toast('已刪除');
   }
 }
 function batchTag() {
@@ -1085,10 +1091,11 @@ async function cloudSync() {
   syncing = true; setSyncState('syncing');
   const killer = setTimeout(() => { syncing = false; setSyncState('idle'); }, 25000);
   try {
-    const r = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: cloudToken, contacts }) });
+    const r = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: cloudToken, contacts, tombstones }) });
     const j = await r.json().catch(() => ({}));
     if (r.status === 501) { toast('雲端後端尚未啟用(管理員需設定密鑰)'); setSyncState('idle'); return; }
     if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+    if (Array.isArray(j.tombstones)) { tombstones = j.tombstones; saveTombstones(); }
     if (Array.isArray(j.contacts)) { contacts = dropJunk(j.contacts.map(migrate)); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render(); }
     setSyncState('synced'); markSynced();
   } catch (e) { setSyncState('idle'); toast('雲端同步失敗:' + e.message); }
@@ -1261,7 +1268,7 @@ function openSettings() {
   $('#set_font').value = settings.fontSize || 'md';
   $('#set_lock').checked = !!settings.pinHash;
   $('#set_cloud').checked = settings.cloudOcr !== false;
-  $('#set_endpoint').value = settings.ocrEndpoint || '';
+  $('#set_endpoint').value = settings.ocrEndpoint || 'https://ocr.name-car-box.com'; $('#set_endpoint').readOnly = true;
   $('#set_drivephotos').checked = settings.drivePhotos !== false;
   $('#set_force').checked = !!settings.forceEndpoint;
   if ($('#set_storage')) $('#set_storage').value = settings.storageMode || 'cloud';
@@ -1274,7 +1281,7 @@ function applySettings() {
   settings.ocrLang = $('#set_ocr').value;
   settings.fontSize = $('#set_font').value;
   settings.cloudOcr = $('#set_cloud').checked;
-  settings.ocrEndpoint = normEndpoint($('#set_endpoint').value);
+  settings.ocrEndpoint = 'https://ocr.name-car-box.com';   // 系統鎖定,不開放修改
   settings.drivePhotos = $('#set_drivephotos').checked;
   settings.forceEndpoint = $('#set_force').checked;
   if ($('#set_storage')) settings.storageMode = $('#set_storage').value;
@@ -1341,8 +1348,9 @@ function bind() {
   $('#btnSave').onclick = saveEdit;
   $('#btnDelete').onclick = () => {
     if (editingId && confirm('確定刪除這張名片?')) {
+      const _c = contacts.find(x => x.id === editingId); if (_c) addTombstone(_c);
       contacts = contacts.filter(c => c.id !== editingId);
-      save(); render(); closeModal('#editModal'); editingId = null; toast('已刪除');
+      saveTombstones(); save(); render(); closeModal('#editModal'); editingId = null; toast('已刪除');
     }
   };
 
@@ -1354,7 +1362,7 @@ function bind() {
   // 設定
   $('#btnSettings').onclick = openSettings;
   $('#setSave').onclick = applySettings;
-  $('#endpointTest').onclick = testEndpoint;
+  if ($('#endpointTest')) $('#endpointTest').onclick = testEndpoint;
   $('#set_lock').onchange = e => {
     if (e.target.checked) {
       const p = prompt('設定 4-6 位數解鎖密碼:');
@@ -1375,7 +1383,7 @@ function bind() {
   $('#wipeAll').onclick = () => {
     if (!confirm('確定清空全部名片資料?此動作無法復原。')) return;
     if (!confirm('再次確認:真的要刪除全部名片?')) return;
-    contacts = []; save(); render(); updateStorage(); toast('已清空全部資料');
+    contacts.forEach(addTombstone); contacts = []; saveTombstones(); save(); render(); updateStorage(); toast('已清空全部資料');
   };
   // 登入畫面(UI)
   if ($('#loginContinue')) {
