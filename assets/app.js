@@ -22,6 +22,7 @@ let query = '';
 let editingId = null;
 let lastOcrRaw = '';
 let detailId = null;
+let favView = false;   // 桌面側欄「收藏」檢視
 let camStream = null;
 let sortBy = 'recent';
 let lastImage = '';        // 最近擷取的名片縮圖(dataURL)
@@ -569,6 +570,7 @@ const SORTERS = {
 function filtered() {
   const q = query.trim().toLowerCase();
   return contacts.filter(c => {
+    if (favView && !c.favorite) return false;
     if (activeGroup !== null) { if (activeGroup === '') { if (c.group) return false; } else if (c.group !== activeGroup) return false; }
     if (activeTag && !(c.tags || []).includes(activeTag)) return false;
     if (!q) return true;
@@ -619,7 +621,7 @@ function render() {
   });
 
   const list = $('#list');
-  if (window.matchMedia('(min-width: 980px)').matches) renderTable(list, data);
+  if (window.matchMedia('(min-width: 980px)').matches) renderDesktop(list, data);
   else renderCards(list, data);
 }
 
@@ -641,6 +643,91 @@ function renderCards(list, data) {
     </div>`).join('');
   $$('#list .contact').forEach(el => el.onclick = () => {
     if (selectMode) toggleSelect(el.dataset.id); else openDetail(el.dataset.id);
+  });
+}
+
+/* ---------- CamCard 風三欄桌面版 ---------- */
+function groupCounts() {
+  const m = new Map(); let none = 0, fav = 0;
+  contacts.forEach(c => { if (c.favorite) fav++; if (c.group) m.set(c.group, (m.get(c.group) || 0) + 1); else none++; });
+  return { groups: [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh-Hant')), none, fav };
+}
+function deskSideHTML() {
+  const gc = groupCounts();
+  const item = (label, count, active, attr) =>
+    `<button class="dk-g ${active ? 'on' : ''}" ${attr}><span class="dk-g-name">${esc(label)}</span><span class="dk-g-n">${count}</span></button>`;
+  let h = `<div class="dk-side-h">分組</div>`;
+  h += item('全部名片', contacts.length, activeGroup === null && !favView, 'data-g="__all"');
+  h += item('收藏', gc.fav, favView, 'data-g="__fav"');
+  gc.groups.forEach(([name, n]) => h += item(name, n, !favView && activeGroup === name, `data-g="g:${esc(name)}"`));
+  if (gc.none) h += item('未分組', gc.none, !favView && activeGroup === '', 'data-g="__none"');
+  return h;
+}
+function deskListHTML(data) {
+  if (!data.length) return `<div class="dk-empty">這個分組沒有名片</div>`;
+  return data.map(c => `<button class="dk-card ${c.id === detailId ? 'on' : ''}" data-id="${c.id}">
+    ${c.image ? `<img class="dk-av" src="${c.image}" alt="">` : `<span class="dk-av dk-av-txt">${esc(initials(c.name || c.company))}</span>`}
+    <span class="dk-card-main"><span class="dk-card-name">${esc(c.name || c.company || '未命名')}${c.favorite ? ' <span class="star">★</span>' : ''}</span>
+    <span class="dk-card-sub">${esc([c.company, c.title].filter(Boolean).join(' · ') || c.phone || c.email || '—')}</span></span>
+    ${c.group ? `<span class="dk-card-g">${esc(c.group)}</span>` : ''}
+  </button>`).join('');
+}
+function deskDetailHTML(c) {
+  if (!c) return `<div class="dk-d-empty"><div class="dk-d-empty-ic">${ICON_DETAIL_EMPTY}</div><p>從中間清單選一張名片<br>右側看完整資訊</p></div>`;
+  const imgs = (c.images && c.images.length) ? c.images : (c.image ? [c.image] : []);
+  const phs = (c.phones && c.phones.length) ? c.phones : (c.phone ? [{ label: '手機', value: c.phone }] : []);
+  const row = (label, valHTML) => `<div class="dk-d-row"><span class="dk-d-l">${esc(label)}</span><span class="dk-d-v">${valHTML}</span></div>`;
+  let rows = '';
+  phs.forEach(p => rows += row(p.label || '電話', `<a href="tel:${esc(p.value)}">${esc(p.value)}</a>`));
+  if (c.fax) rows += row('傳真', esc(c.fax));
+  if (c.taxId) rows += row('統編', esc(c.taxId));
+  if (c.email) rows += row('Email', `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`);
+  if (c.website) { const w = /^https?:/.test(c.website) ? c.website : 'https://' + c.website; rows += row('網站', `<a href="${esc(w)}" target="_blank" rel="noopener">${esc(c.website)}</a>`); }
+  if (c.address) rows += row('地址', `<a href="${mapsHref(c.address)}" target="_blank" rel="noopener">${esc(c.address)}</a>`);
+  if (c.group) rows += row('分組', esc(c.group));
+  if ((c.tags || []).length) rows += row('標籤', c.tags.map(t => `<span class="c-tag">${esc(t)}</span>`).join(' '));
+  return `<div class="dk-d-head">
+      ${c.image ? `<img class="dk-d-ava" src="${c.image}" alt="">` : `<span class="dk-d-ava dk-d-ava-txt">${esc(initials(c.name || c.company))}</span>`}
+      <div class="dk-d-htext"><div class="dk-d-name">${esc(c.name || '未命名')}${c.favorite ? ' <span class="star">★</span>' : ''}</div>
+      ${c.company ? `<div class="dk-d-sub">${esc(c.company)}</div>` : ''}${c.title ? `<div class="dk-d-sub muted">${esc(c.title)}</div>` : ''}</div>
+    </div>
+    ${imgs.length ? `<div class="dk-d-imgs">${imgs.map(u => `<img src="${u}" alt="名片">`).join('')}</div>` : ''}
+    <div class="dk-d-acts">
+      <button class="dk-act" data-act="edit">${ICON_EDIT}<span>編輯</span></button>
+      <button class="dk-act" data-act="fav">${c.favorite ? '★' : '☆'}<span>收藏</span></button>
+      <button class="dk-act" data-act="share">${ICON_SHARE}<span>分享</span></button>
+      <button class="dk-act" data-act="vcard">${ICON_DL}<span>vCard</span></button>
+      <button class="dk-act danger" data-act="del">${ICON_TRASH}<span>刪除</span></button>
+    </div>
+    <div class="dk-d-rows">${rows}</div>
+    ${c.note ? `<div class="dk-d-note"><div class="dk-d-l">備註</div><div>${esc(c.note)}</div></div>` : ''}
+    <div class="dk-d-meta">建檔 ${fmtDate(c.created)}${c.source ? ' · 來源:' + esc(c.source) : ''}</div>`;
+}
+function renderDesktop(list, data) {
+  list.classList.remove('as-table'); list.classList.add('as-desk');
+  if (!data.find(c => c.id === detailId)) detailId = data.length ? data[0].id : null;
+  const cur = contacts.find(c => c.id === detailId);
+  list.innerHTML = `<div class="desk"><aside class="dk-side">${deskSideHTML()}</aside>` +
+    `<div class="dk-list">${deskListHTML(data)}</div>` +
+    `<div class="dk-detail">${deskDetailHTML(cur)}</div></div>`;
+  // 側欄分組
+  $$('#list .dk-g').forEach(b => b.onclick = () => {
+    const g = b.dataset.g;
+    favView = (g === '__fav');
+    activeGroup = g === '__all' || g === '__fav' ? null : (g === '__none' ? '' : g.slice(2));
+    render();
+  });
+  // 中間清單
+  $$('#list .dk-card').forEach(b => b.onclick = () => { detailId = b.dataset.id; render(); });
+  // 右側動作
+  const dEl = $('#list .dk-detail');
+  if (dEl && cur) dEl.querySelectorAll('.dk-act').forEach(btn => btn.onclick = () => {
+    const a = btn.dataset.act, c = cur;
+    if (a === 'edit') openEdit(c.id);
+    else if (a === 'fav') { c.favorite = !c.favorite; save(); render(); }
+    else if (a === 'share') shareContact(c);
+    else if (a === 'vcard') download(new Blob([toVCard(c)], { type: 'text/vcard' }), `${c.name || 'card'}.vcf`);
+    else if (a === 'del') { if (confirm('確定刪除這張名片?')) { addTombstone(c); contacts = contacts.filter(x => x.id !== c.id); saveTombstones(); detailId = null; save(); render(); toast('已刪除'); } }
   });
 }
 
@@ -1030,8 +1117,9 @@ function renderNavUser() {
 function logout() {
   try { if (driveToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(driveToken, () => {}); } catch (e) {}
   driveToken = ''; driveUser = null; cloudToken = ''; cloudUser = null;
-  try { localStorage.removeItem('cardsnap.authed'); } catch (e) {}
-  setSyncState('idle'); renderNavUser(); toast('已登出'); showLogin();
+  contacts = []; tombstones = [];
+  try { localStorage.removeItem('cardsnap.authed'); localStorage.setItem(STORE_KEY, '[]'); localStorage.removeItem(TOMB_KEY); localStorage.removeItem('cardsnap.owner'); } catch (e) {}
+  setSyncState('idle'); render(); renderNavUser(); toast('已登出'); showLogin();
 }
 
 function setSyncState(s) {
@@ -1069,9 +1157,22 @@ function initCloud() {
   cloudTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: googleClientId(),
     scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-    callback: (resp) => {
-      if (resp && resp.access_token) { cloudToken = resp.access_token; try { localStorage.setItem('cardsnap.authed', '1'); } catch (e) {} closeLogin(); fetchCloudUser(); cloudSync(); }
-      else { setSyncState('idle'); toast('登入未完成'); }
+    callback: async (resp) => {
+      if (resp && resp.access_token) {
+        cloudToken = resp.access_token;
+        try { localStorage.setItem('cardsnap.authed', '1'); } catch (e) {}
+        closeLogin();
+        await fetchCloudUser();
+        const email = (cloudUser && cloudUser.email) ? String(cloudUser.email).toLowerCase() : '';
+        let prevOwner = null; try { prevOwner = localStorage.getItem('cardsnap.owner'); } catch (e) {}
+        if (email && prevOwner && prevOwner !== email) {
+          contacts = []; tombstones = [];
+          try { localStorage.setItem(STORE_KEY, '[]'); localStorage.removeItem(TOMB_KEY); } catch (e) {}
+          render();
+        }
+        if (email) { try { localStorage.setItem('cardsnap.owner', email); } catch (e) {} }
+        cloudSync();
+      } else { setSyncState('idle'); toast('登入未完成'); }
     },
   });
 }
@@ -1098,6 +1199,7 @@ async function cloudSync() {
     if (Array.isArray(j.tombstones)) { tombstones = j.tombstones; saveTombstones(); }
     if (Array.isArray(j.contacts)) { contacts = dropJunk(j.contacts.map(migrate)); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render(); }
     setSyncState('synced'); markSynced();
+    try { if (cloudUser && cloudUser.email) localStorage.setItem('cardsnap.owner', String(cloudUser.email).toLowerCase()); } catch (e) {}
   } catch (e) { setSyncState('idle'); toast('雲端同步失敗:' + e.message); }
   finally { clearTimeout(killer); syncing = false; }
 }
