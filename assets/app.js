@@ -71,7 +71,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: 'https://ocr.name-car-box.com', drivePhotos: true, forceEndpoint: false };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: 'https://ocr.name-car-box.com', drivePhotos: true, forceEndpoint: false, storageMode: 'cloud' };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -981,6 +981,11 @@ let drivePushT = null;
 let driveFolderId = '';   // Drive 可見資料夾「CardSnap 名片」id
 let syncing = false;     // 防重入:同步進行中
 let syncSignal = null;   // 逾時中止用
+let cloudToken = '';
+let cloudUser = null;
+let cloudTokenClient = null;
+let cloudPushT = null;
+function storageMode() { return (typeof settings !== 'undefined' && settings && settings.storageMode) || 'cloud'; }
 
 function googleClientId() {
   return (window.CARDSNAP_CONFIG && window.CARDSNAP_CONFIG.googleClientId) || '';
@@ -1001,22 +1006,24 @@ async function fetchDriveUser() {
 }
 function renderNavUser() {
   const el = $('#navUser'); if (!el) return;
-  if (driveUser && driveToken) {
-    const name = driveUser.name || driveUser.email || '使用者';
-    const ava = driveUser.picture
-      ? `<img class="nu-ava" src="${esc(driveUser.picture)}" alt="" referrerpolicy="no-referrer">`
+  const drive = storageMode() === 'drive';
+  const u = drive ? (driveToken && driveUser) : (cloudToken && cloudUser);
+  if (u) {
+    const name = u.name || u.email || '使用者';
+    const ava = u.picture
+      ? `<img class="nu-ava" src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`
       : `<span class="nu-ava nu-ava-txt">${esc((name[0] || '?').toUpperCase())}</span>`;
-    el.innerHTML = `${ava}<span class="nu-name" title="${esc(driveUser.email || '')}">${esc(name)}</span>` +
+    el.innerHTML = `${ava}<span class="nu-name" title="${esc(u.email || '')}">${esc(name)}</span>` +
       `<button class="nu-logout" id="navLogout" title="登出">登出</button>`;
     const lo = $('#navLogout'); if (lo) lo.onclick = logout;
   } else {
     el.innerHTML = `<button class="nu-login" id="navLogin">登入</button>`;
-    const li = $('#navLogin'); if (li) li.onclick = signInAndSync;
+    const li = $('#navLogin'); if (li) li.onclick = signIn;
   }
 }
 function logout() {
   try { if (driveToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(driveToken, () => {}); } catch (e) {}
-  driveToken = ''; driveUser = null;
+  driveToken = ''; driveUser = null; cloudToken = ''; cloudUser = null;
   try { localStorage.removeItem('cardsnap.authed'); } catch (e) {}
   setSyncState('idle'); renderNavUser(); toast('已登出'); showLogin();
 }
@@ -1048,6 +1055,46 @@ function signInAndSync() {
   if (driveToken) doSync();
   else driveTokenClient.requestAccessToken();
 }
+
+/* ---------- 雲端模式:存「我的系統」(擁有者 Drive,經 /api/sync) ---------- */
+function initCloud() {
+  if (!googleClientId()) return;
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) { setTimeout(initCloud, 600); return; }
+  cloudTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: googleClientId(),
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    callback: (resp) => {
+      if (resp && resp.access_token) { cloudToken = resp.access_token; try { localStorage.setItem('cardsnap.authed', '1'); } catch (e) {} closeLogin(); fetchCloudUser(); cloudSync(); }
+      else { setSyncState('idle'); toast('登入未完成'); }
+    },
+  });
+}
+function cloudSignIn() {
+  if (!googleClientId()) { toast('登入尚未設定'); return; }
+  if (!cloudTokenClient) { initCloud(); toast('初始化中,請再按一次'); return; }
+  if (cloudToken) cloudSync(); else cloudTokenClient.requestAccessToken();
+}
+async function fetchCloudUser() {
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + cloudToken } });
+    if (r.ok) { cloudUser = await r.json(); renderNavUser(); }
+  } catch (e) {}
+}
+async function cloudSync() {
+  if (!cloudToken || syncing) return;
+  syncing = true; setSyncState('syncing');
+  const killer = setTimeout(() => { syncing = false; setSyncState('idle'); }, 25000);
+  try {
+    const r = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: cloudToken, contacts }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 501) { toast('雲端後端尚未啟用(管理員需設定密鑰)'); setSyncState('idle'); return; }
+    if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+    if (Array.isArray(j.contacts)) { contacts = dropJunk(j.contacts.map(migrate)); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render(); }
+    setSyncState('synced'); markSynced();
+  } catch (e) { setSyncState('idle'); toast('雲端同步失敗:' + e.message); }
+  finally { clearTimeout(killer); syncing = false; }
+}
+function signIn() { if (storageMode() === 'drive') signInAndSync(); else cloudSignIn(); }
 
 async function driveApi(url, opts) {
   const r = await fetch(url, Object.assign({ headers: { Authorization: 'Bearer ' + driveToken }, signal: syncSignal }, opts || {}));
@@ -1138,9 +1185,8 @@ async function doSync() {
 }
 
 function schedulePush() {
-  if (!driveToken) return;
-  clearTimeout(drivePushT);
-  drivePushT = setTimeout(doSync, 2500);
+  if (storageMode() === 'drive') { if (!driveToken) return; clearTimeout(drivePushT); drivePushT = setTimeout(doSync, 2500); }
+  else { if (!cloudToken) return; clearTimeout(cloudPushT); cloudPushT = setTimeout(cloudSync, 2500); }
 }
 
 function fmtSyncTime(ts) {
@@ -1218,6 +1264,7 @@ function openSettings() {
   $('#set_endpoint').value = settings.ocrEndpoint || '';
   $('#set_drivephotos').checked = settings.drivePhotos !== false;
   $('#set_force').checked = !!settings.forceEndpoint;
+  if ($('#set_storage')) $('#set_storage').value = settings.storageMode || 'cloud';
   updateStorage();
   openModal('#settingsModal');
 }
@@ -1230,6 +1277,8 @@ function applySettings() {
   settings.ocrEndpoint = normEndpoint($('#set_endpoint').value);
   settings.drivePhotos = $('#set_drivephotos').checked;
   settings.forceEndpoint = $('#set_force').checked;
+  if ($('#set_storage')) settings.storageMode = $('#set_storage').value;
+  renderNavUser();
   cloudOcrDown = false;
   saveSettings();
   applyFontSize();
@@ -1331,7 +1380,7 @@ function bind() {
   // 登入畫面(UI)
   if ($('#loginContinue')) {
     $('#loginContinue').onclick = () => { toast('請用下方「使用 Google 繼續」登入'); };
-    $('#loginGoogle').onclick = () => { if (typeof signInAndSync === 'function') signInAndSync(); };
+    $('#loginGoogle').onclick = () => { if (typeof signIn === 'function') signIn(); };
     $('#loginMs').onclick = () => toast('Microsoft 登入即將推出,請改用 Google');
     $('#loginSso').onclick = () => toast('SSO 登入即將推出,請改用 Google');
     $('#loginForgot').onclick = () => toast('密碼重設即將推出');
@@ -1363,7 +1412,7 @@ function bind() {
   $('#selDone').onclick = exitSelect;
 
   // 雲端同步
-  $('#btnSync').onclick = signInAndSync;
+  $('#btnSync').onclick = signIn;
 
   // Esc 關閉
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('.modal:not(.hidden)').forEach(m => closeModal('#' + m.id)); });
@@ -1389,6 +1438,7 @@ render();
 if (!localStorage.getItem('cardsnap.authed') && (typeof googleClientId !== 'function' || googleClientId())) showLogin();
 if (settings.pinHash) showLock();
 initDrive();
+initCloud();
 initSyncStatus();
 updateClock(); setInterval(updateClock, 30000);
 renderNavUser();
