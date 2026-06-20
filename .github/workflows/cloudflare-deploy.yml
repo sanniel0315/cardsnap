@@ -32,3 +32,19 @@ jobs:
         run: |
           export CLOUDFLARE_API_TOKEN="$(printf '%s' "$CF_API_TOKEN_RAW" | tr -d '[:space:]')"
           npx wrangler@4 pages deploy dist --project-name=cardsnap --branch=main --commit-dirty=true
+
+      - name: 上線後自動驗證(smoke test,不符即失敗)
+        run: |
+          SHA="$(git rev-parse --short HEAD)"; SHA="${SHA:0:7}"
+          echo "預期線上版本: ${SHA}"
+          for i in $(seq 1 24); do
+            sleep 10
+            HTML="$(curl -fsSL "https://name-car-box.com/?cb=$(date +%s%N)" 2>/dev/null || true)"
+            if printf '%s' "$HTML" | grep -q "app.js?v=${SHA}"; then
+              echo "✅ name-car-box.com 已上線最新版 ${SHA}(第 ${i} 次輪詢)"
+              exit 0
+            fi
+            echo "  …等待部署生效(${i}/24)"
+          done
+          echo "❌ 逾時 4 分鐘:name-car-box.com 仍未更新到 ${SHA}"
+          exit 1
