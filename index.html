@@ -106,6 +106,16 @@ h2{font-size:clamp(28px,4vw,40px);text-align:center;letter-spacing:-.02em;font-w
 .final .btn-primary{background:#fff;color:var(--teal)}
 footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
 
+.feat .ico svg{transition:transform .3s ease}
+.feat:hover .ico{transform:scale(1.06) rotate(-3deg);transition:transform .3s ease}
+.feat:hover .ico svg{transform:scale(1.12)}
+.btn svg{transition:transform .2s ease}
+.btn:hover svg{transform:scale(1.14)}
+.logo .mark svg{transition:transform .3s ease}
+.logo:hover .mark svg{transform:rotate(-8deg) scale(1.08)}
+.step .n{transition:transform .25s ease}
+.step:hover .n{transform:scale(1.1) rotate(5deg)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
 .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
 .reveal.in{opacity:1;transform:none}
 </style>
@@ -123,14 +133,14 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
 <header class="hero">
   <span class="blob b1"></span><span class="blob b2"></span>
   <div class="wrap">
-    <span class="pill"><span class="dot"></span>高精準辨識 · 雲端跨裝置同步</span>
+    <span class="pill"><span class="dot"></span>拍張照,名片自己跑進通訊錄</span>
     <h1>名片，<span class="grad">拍一張</span>就好<br>自動進你的通訊錄</h1>
-    <p class="sub">對準名片、自動擷取，AI 高精準辨識姓名、公司、電話、Email，整理成可搜尋的名單。雲端同步、一鍵匯出 vCard／Excel。</p>
+    <p class="sub">展會收一疊名片,回家還得一張張打字?交給它就好。對準名片拍一下,姓名、公司、電話自動認好,整理成能搜尋的名單;手機電腦都同步,還能一鍵丟進通訊錄。</p>
     <div class="cta-row">
-      <a class="btn btn-primary btn-lg" href="./app.html"><svg class="ic" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>免費開始用</a>
-      <a class="btn btn-ghost btn-lg" href="#features">看看功能</a>
+      <a class="btn btn-primary btn-lg" href="./app.html"><svg class="ic" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>免費試試</a>
+      <a class="btn btn-ghost btn-lg" href="#features">看它怎麼運作</a>
     </div>
-    <div class="note"><svg class="ic" style="width:18px;height:18px;color:#0d9488" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>用 Google 登入即可，不用記新密碼</div>
+    <div class="note"><svg class="ic" style="width:18px;height:18px;color:#0d9488" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>用 Google 登入就好,不用再記一組新密碼</div>
 
     <div class="shot reveal"><div class="card">
       <div class="bar"><i></i><i></i><i></i></div>
@@ -155,16 +165,16 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
 
 <section id="features">
   <div class="wrap">
-    <div class="eyebrow reveal">功能</div>
-    <h2 class="reveal">把整疊名片，變成一份乾淨名單</h2>
-    <p class="lead reveal">從拍照到建檔、同步、匯出，一條龍。</p>
+    <div class="eyebrow reveal">能幫你做什麼</div>
+    <h2 class="reveal">你只管拍,其他它全包了</h2>
+    <p class="lead reveal">從拍照、認字到整理、同步、匯出,一路幫你弄好。</p>
     <div class="grid">
-      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div><h3>拍照即建檔</h3><p>對齊框內自動擷取，連拍也行；展場一次掃一疊名片不手痠。</p></div>
-      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6M12 4v16"/></svg></div><h3>高精準 OCR</h3><p>AI 視覺辨識姓名、公司、職稱、多支電話、Email、地址、統編，準確不亂碼。</p></div>
-      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div><h3>雲端跨裝置同步</h3><p>Google 登入即同步，手機拍、電腦看，換裝置資料都在，自動合併不重複。</p></div>
-      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg></div><h3>一鍵匯出</h3><p>匯出 vCard 直接進手機通訊錄，或 CSV／Excel、JSON 完整備份。</p></div>
-      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></div><h3>分組與標籤</h3><p>客戶、供應商、展場自由分組，加標籤、收藏、批次移動，找人超快。</p></div>
-      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6 9.4l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4.5a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div><h3>雙面與多電話</h3><p>名片正反面、手機＋市話＋傳真分開存，備註附建檔日期與來源。</p></div>
+      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div><h3>拍照就建檔</h3><p>對準框裡自動拍,連拍也行。展場一疊名片刷刷刷掃完,手不痠。</p></div>
+      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6M12 4v16"/></svg></div><h3>認字超準</h3><p>AI 幫你認姓名、公司、職稱、好幾支電話、Email、地址、統編,認得準、不亂碼。</p></div>
+      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div><h3>到哪都同步</h3><p>Google 登入就同步。手機拍、電腦看,換手機資料也都在,還會自動去重複。</p></div>
+      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg></div><h3>一鍵帶著走</h3><p>vCard 直接丟進手機通訊錄,或匯成 Excel／CSV、JSON 備份,資料是你的。</p></div>
+      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></div><h3>想怎麼分都行</h3><p>客戶、供應商、展場隨你分,加標籤、收藏、批次搬,找人三秒就到。</p></div>
+      <div class="feat reveal"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6 9.4l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4.5a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div><h3>細節都顧到</h3><p>正反面都存得下,手機、市話、傳真分開放,備註還記下哪天、在哪收到的。</p></div>
     </div>
   </div>
 </section>
@@ -172,12 +182,12 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
 <section id="how" class="steps-sec">
   <div class="wrap">
     <div class="eyebrow reveal">怎麼用</div>
-    <h2 class="reveal">三步，名片就進通訊錄</h2>
-    <p class="lead reveal">不用打字、不用整理，拍完就好。</p>
+    <h2 class="reveal">三步,真的就三步</h2>
+    <p class="lead reveal">不用打字、不用整理,拍完就收工。</p>
     <div class="steps">
-      <div class="step reveal"><div class="n"></div><h3>拍照對齊</h3><p>把名片放進對齊框，系統穩定後自動擷取，免按快門。</p></div>
-      <div class="step reveal"><div class="n"></div><h3>自動辨識</h3><p>AI 立刻認出欄位，自動填好姓名、公司、電話、Email。</p></div>
-      <div class="step reveal"><div class="n"></div><h3>建檔同步</h3><p>確認存檔，雲端同步到你的帳號，所有裝置都看得到。</p></div>
+      <div class="step reveal"><div class="n"></div><h3>拍照對齊</h3><p>名片放進框裡,對好了它自己拍,你不用按快門。</p></div>
+      <div class="step reveal"><div class="n"></div><h3>自動認字</h3><p>AI 立刻把欄位填好,姓名、公司、電話一個都不漏。</p></div>
+      <div class="step reveal"><div class="n"></div><h3>存檔同步</h3><p>按個存檔,雲端同步到你的帳號,所有裝置馬上看得到。</p></div>
     </div>
   </div>
 </section>
@@ -185,17 +195,17 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
 <section class="strip">
   <div class="wrap">
     <div class="grid4">
-      <div class="t reveal"><b>3 秒</b><span>拍一張到建檔</span></div>
+      <div class="t reveal"><b>3 秒</b><span>拍一張就建檔</span></div>
       <div class="t reveal"><b>跨裝置</b><span>手機 / 電腦同步</span></div>
       <div class="t reveal"><b>vCard</b><span>直接進通訊錄</span></div>
-      <div class="t reveal"><b>0 元</b><span>免費開始用</span></div>
+      <div class="t reveal"><b>免費</b><span>開始用不用錢</span></div>
     </div>
   </div>
 </section>
 
 <section class="final"><div class="wrap"><div class="box reveal">
-  <h2>下一場展會前，先把名片煩惱解決</h2>
-  <p>用 Google 登入，立刻開始整理你的名片。</p>
+  <h2>下次換完名片,別再帶一疊回家整理</h2>
+  <p>用 Google 登入,現在就把名片變成乾淨名單。</p>
   <a class="btn btn-primary btn-lg" href="./app.html">免費開始用 CardSnap</a>
 </div></div></section>
 

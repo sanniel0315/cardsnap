@@ -579,3 +579,12 @@ body::before{width:460px;height:460px;background:radial-gradient(circle,#99f6e4,
 body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,transparent 70%);bottom:-150px;right:-120px;animation:bgdrift2 26s ease-in-out infinite}
 @keyframes bgdrift1{0%,100%{transform:translate(0,0)}50%{transform:translate(46px,34px)}}
 @keyframes bgdrift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-44px,-30px)}}
+
+/* 內容圖示動畫(詳情動作、地圖/撥打/簡訊等) */
+.dc-act .dc-act-ic{transition:transform .2s ease}
+.dc-act:hover .dc-act-ic{transform:scale(1.18)}
+.dc-act:active .dc-act-ic{transform:scale(.9)}
+.dc-row-acts a svg,.c-quick a svg{transition:transform .2s ease}
+.dc-row-acts a:hover svg,.c-quick a:hover svg{transform:scale(1.22)}
+.empty-ic svg{animation:floaty 3.2s ease-in-out infinite}
+.nav-clock,.nu-name{transition:opacity .3s ease}
