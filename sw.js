@@ -6,6 +6,7 @@ const CACHE = 'cardsnap-' + (BUILD_ID.indexOf('__') === 0 ? 'dev' : BUILD_ID);
 const SHELL = [
   './',
   './index.html',
+  './app.html',
   './assets/styles.css',
   './assets/app.js',
   './assets/icon.svg',
@@ -34,6 +35,6 @@ self.addEventListener('fetch', e => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(request, copy));
       return res;
-    }).catch(() => caches.match(request).then(hit => hit || caches.match('./index.html')))
+    }).catch(() => caches.match(request).then(hit => hit || caches.match('./app.html')))
   );
 });

@@ -2,7 +2,7 @@
   "name": "CardSnap 名片整理",
   "short_name": "CardSnap",
   "description": "拍照即建檔的名片整理 App — 端上 OCR、名單管理、匯出 vCard/CSV、一鍵分享。",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

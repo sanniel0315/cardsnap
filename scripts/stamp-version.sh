@@ -4,5 +4,5 @@
 set -e
 SHA="${1:-${COMMIT_REF:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}}"
 SHA="${SHA:0:7}"
-sed -i.bak "s/__BUILD_ID__/${SHA}/g" sw.js index.html && rm -f sw.js.bak index.html.bak
+sed -i.bak "s/__BUILD_ID__/${SHA}/g" sw.js index.html app.html && rm -f sw.js.bak index.html.bak app.html.bak
 echo "Stamped sw.js build id: ${SHA}"

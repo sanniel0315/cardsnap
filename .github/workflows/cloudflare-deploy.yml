@@ -39,7 +39,7 @@ jobs:
           echo "預期線上版本: ${SHA}"
           for i in $(seq 1 24); do
             sleep 10
-            HTML="$(curl -fsSL "https://name-car-box.com/?cb=$(date +%s%N)" 2>/dev/null || true)"
+            HTML="$(curl -fsSL "https://name-car-box.com/app.html?cb=$(date +%s%N)" 2>/dev/null || true)"
             if printf '%s' "$HTML" | grep -q "app.js?v=${SHA}"; then
               echo "✅ name-car-box.com 已上線最新版 ${SHA}(第 ${i} 次輪詢)"
               exit 0
