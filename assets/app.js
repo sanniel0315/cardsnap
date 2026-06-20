@@ -58,7 +58,7 @@ function syncPhones(c) {
   return c;
 }
 function loadSettings() {
-  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: '', drivePhotos: true, forceEndpoint: false };
+  const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: 'https://ocr.name-car-box.com', drivePhotos: true, forceEndpoint: false };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
   catch { return def; }
 }
@@ -424,17 +424,61 @@ function resetCaptureKeepBurst() {
 /* ============================================================
    匯入(CSV / vCard / JSON)+ 去重合併
    ============================================================ */
+function cleanCardName(s) {
+  if (!s) return '';
+  const parts = String(s).split(/[-\uFF0D\u2014]/).map(t => t.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : String(s).trim();
+}
+// 解析 Excel(.xlsx/.xls)。優先支援 CamCard 匯出(無標題列、固定欄位、姓名為「公司-職稱-人名」)。
+async function parseSpreadsheet(file) {
+  if (typeof XLSX === 'undefined') { toast('Excel 解析元件載入中,請再按一次匯入'); return []; }
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+  if (!rows.length) return [];
+  const get = (r, i) => (r[i] == null ? '' : String(r[i]).trim());
+  const looksCamCard = rows.some(r => {
+    const b = get(r, 1);
+    return b === '姓名' || /[-\uFF0D\u2014].*[-\uFF0D\u2014]/.test(b);
+  });
+  if (looksCamCard) {
+    const out = [];
+    for (const r of rows) {
+      const nameRaw = get(r, 1) || get(r, 2);
+      if (!nameRaw || nameRaw === '姓名') continue;
+      const name = cleanCardName(nameRaw) || get(r, 46);
+      const mobile = get(r, 15), office = get(r, 18), fax = get(r, 21);
+      const phones = [];
+      if (mobile) phones.push({ label: '手機', value: mobile });
+      if (office) phones.push({ label: '市話', value: office });
+      out.push({
+        name, company: get(r, 6) || get(r, 9), title: get(r, 11) || get(r, 8),
+        email: get(r, 24), website: get(r, 40), fax,
+        phone: mobile || office, phones,
+        address: (get(r, 29) + ' ' + get(r, 30)).trim(), tags: [], note: ''
+      });
+    }
+    return out;
+  }
+  return parseCSV(XLSX.utils.sheet_to_csv(ws));
+}
+
 async function importFromFile(file) {
   try {
-    const text = await file.text();
     const fn = (file.name || '').toLowerCase();
     let parsed = [];
-    if (fn.endsWith('.json') || /^\s*[\[{]/.test(text)) {
-      const j = JSON.parse(text); parsed = Array.isArray(j) ? j : (j.contacts || []);
-    } else if (fn.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) {
-      parsed = parseVCards(text);
+    if (fn.endsWith('.xlsx') || fn.endsWith('.xls')) {
+      parsed = await parseSpreadsheet(file);
     } else {
-      parsed = parseCSV(text);
+      const text = await file.text();
+      if (fn.endsWith('.json') || /^\s*[\[{]/.test(text)) {
+        const j = JSON.parse(text); parsed = Array.isArray(j) ? j : (j.contacts || []);
+      } else if (fn.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) {
+        parsed = parseVCards(text);
+      } else {
+        parsed = parseCSV(text);
+      }
     }
     if (!parsed.length) { toast('檔案沒有可匯入的名片'); return; }
     const incoming = parsed.map(p => migrate({
@@ -960,7 +1004,8 @@ function renderNavUser() {
 function logout() {
   try { if (driveToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(driveToken, () => {}); } catch (e) {}
   driveToken = ''; driveUser = null;
-  setSyncState('idle'); renderNavUser(); toast('已登出');
+  try { localStorage.removeItem('cardsnap.authed'); } catch (e) {}
+  setSyncState('idle'); renderNavUser(); toast('已登出'); showLogin();
 }
 
 function setSyncState(s) {
@@ -977,7 +1022,7 @@ function initDrive() {
     client_id: googleClientId(),
     scope: GOOGLE_SCOPE,
     callback: (resp) => {
-      if (resp && resp.access_token) { driveToken = resp.access_token; fetchDriveUser(); doSync(); }
+      if (resp && resp.access_token) { driveToken = resp.access_token; try { localStorage.setItem('cardsnap.authed', '1'); } catch (e) {} closeLogin(); fetchDriveUser(); doSync(); }
       else { setSyncState('idle'); toast('Google 授權未完成'); }
     },
   });
@@ -1272,17 +1317,13 @@ function bind() {
   };
   // 登入畫面(UI)
   if ($('#loginContinue')) {
-    $('#loginContinue').onclick = () => {
-      const e = ($('#loginEmail').value || '').trim();
-      if (!e) { toast('請輸入電子郵件或電話號碼'); return; }
-      closeLogin(); toast('歡迎使用 CardSnap');
-    };
-    $('#loginGoogle').onclick = () => { closeLogin(); if (typeof signInAndSync === 'function') signInAndSync(); };
-    $('#loginMs').onclick = () => toast('Microsoft 登入即將推出');
-    $('#loginSso').onclick = () => toast('SSO 登入即將推出');
+    $('#loginContinue').onclick = () => { toast('請用下方「使用 Google 繼續」登入'); };
+    $('#loginGoogle').onclick = () => { if (typeof signInAndSync === 'function') signInAndSync(); };
+    $('#loginMs').onclick = () => toast('Microsoft 登入即將推出,請改用 Google');
+    $('#loginSso').onclick = () => toast('SSO 登入即將推出,請改用 Google');
     $('#loginForgot').onclick = () => toast('密碼重設即將推出');
-    $('#loginSignup').onclick = () => toast('註冊功能即將推出');
-    $('#loginSkip').onclick = () => closeLogin();
+    $('#loginSignup').onclick = () => toast('用 Google 登入即可開始使用');
+    const _sk = $('#loginSkip'); if (_sk) _sk.style.display = 'none';
   }
   $('#lockBtn').onclick = tryUnlock;
   $('#lockInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
@@ -1332,7 +1373,7 @@ applyFontSize();
 bind();
 { const ss = $('#sortSelect'); if (ss) ss.value = sortBy; }
 render();
-if (!localStorage.getItem('cardsnap.loginSeen')) showLogin();
+if (!localStorage.getItem('cardsnap.authed') && (typeof googleClientId !== 'function' || googleClientId())) showLogin();
 if (settings.pinHash) showLock();
 initDrive();
 initSyncStatus();
