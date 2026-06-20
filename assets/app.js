@@ -36,10 +36,23 @@ let selectMode = false;    // 多選模式
 let selected = new Set();
 let exportScope = null;    // null=全部;Set=僅選取
 
+function isJunkContact(x) {
+  if (!x) return true;
+  const blob = [x.name, x.company, x.title, x.address, x.note, x.website].join(' ');
+  if (/\uFFFD/.test(blob)) return true;                       // � 解碼失敗
+  if (/[\x00-\x08\x0E-\x1F]/.test(blob)) return true;        // 控制字元
+  if (/PK\x03\x04|sharedStrings|xl\/worksheets|Content_Types|<\?xml/i.test(blob)) return true; // Excel/zip 殘骸
+  const name = String(x.name || '').trim();
+  const company = String(x.company || '').trim();
+  if (!name && !company) return true;                         // 空白名片
+  return false;
+}
+function dropJunk(arr) { return (Array.isArray(arr) ? arr : []).filter(c => !isJunkContact(c)); }
+
 function load() {
   let arr = [];
   try { arr = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { arr = []; }
-  return arr.map(migrate);
+  return dropJunk(arr.map(migrate));
 }
 /* 舊資料 → 新欄位(多電話 phones[]、雙面 images[]、分組 group) */
 function migrate(c) {
@@ -1100,7 +1113,7 @@ async function doSync() {
       const dj = await dr.json().catch(() => ({}));
       remote = Array.isArray(dj) ? dj : (dj.contacts || []);
     }
-    contacts = syncMerge(contacts, remote); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
+    contacts = dropJunk(syncMerge(contacts, remote)); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
     await pushPhotosToDrive();   // 上傳照片到可見資料夾,id 寫回 contacts 一併存
     const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts });
     if (file) {
