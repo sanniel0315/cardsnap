@@ -36,8 +36,9 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 /* hero */
 .hero{position:relative;padding:150px 0 90px;text-align:center;overflow:hidden}
 .blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;z-index:0}
-.b1{width:520px;height:520px;background:radial-gradient(circle,#5eead4,transparent 70%);top:-160px;left:-120px}
-.b2{width:480px;height:480px;background:radial-gradient(circle,#7dd3fc,transparent 70%);top:-80px;right:-130px}
+.b1{width:520px;height:520px;background:radial-gradient(circle,#5eead4,transparent 70%);top:-160px;left:-120px;animation:drift1 22s ease-in-out infinite}
+.b2{width:480px;height:480px;background:radial-gradient(circle,#7dd3fc,transparent 70%);top:-80px;right:-130px;animation:drift2 28s ease-in-out infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,30px)}}@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-38px,26px)}}
 .hero .wrap{position:relative;z-index:1}
 .pill{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);color:var(--teal);font-weight:700;font-size:13px;padding:7px 15px;border-radius:999px;margin-bottom:26px;box-shadow:0 4px 14px -8px rgba(13,148,136,.4)}
 .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--teal2);box-shadow:0 0 0 4px rgba(20,184,166,.2)}
