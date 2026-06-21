@@ -591,9 +591,15 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 
 /* ============ 登入頁:視窗 + 圖示動畫 ============ */
 .login-screen::before,.login-screen::after{content:'';position:absolute;border-radius:50%;filter:blur(82px);z-index:0;pointer-events:none}
-.login-screen::before{width:420px;height:420px;background:radial-gradient(circle,#99f6e4,transparent 70%);opacity:.5;top:-140px;right:-90px;animation:bgdrift1 20s ease-in-out infinite}
-.login-screen::after{width:400px;height:400px;background:radial-gradient(circle,#bae6fd,transparent 70%);opacity:.5;bottom:-140px;left:-90px;animation:bgdrift2 26s ease-in-out infinite}
+.login-screen::before{width:440px;height:440px;background:radial-gradient(circle,#99f6e4,transparent 70%);opacity:.6;top:-150px;right:-90px;animation:loginbg1 15s ease-in-out infinite}
+.login-screen::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,transparent 70%);opacity:.6;bottom:-150px;left:-90px;animation:loginbg2 19s ease-in-out infinite}
+@keyframes loginbg1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(54px,40px) scale(1.14)}}
+@keyframes loginbg2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-50px,-34px) scale(1.12)}}
 .login-card{position:relative;z-index:1;animation:loginPop .5s cubic-bezier(.2,.8,.2,1)}
+.login-card::before{content:'';position:absolute;inset:-2px;border-radius:24px;z-index:-1;pointer-events:none;background:conic-gradient(from 0deg,rgba(20,184,166,0) 0deg,rgba(20,184,166,0) 215deg,#14b8a6 280deg,#0ea5e9 325deg,#5eead4 360deg);animation:runborder 3.4s linear infinite}
+.login-card::after{content:'';position:absolute;inset:-14px;border-radius:32px;z-index:-2;pointer-events:none;background:radial-gradient(closest-side,rgba(14,165,233,.22),transparent 75%);animation:glowpulse 3.4s ease-in-out infinite}
+@keyframes runborder{to{transform:rotate(360deg)}}
+@keyframes glowpulse{0%,100%{opacity:.45}50%{opacity:.85}}
 @keyframes loginPop{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 .login-brand .logo{animation:floaty 3.5s ease-in-out infinite}
 .login-brand,.login-title,.login-field,.login-row,.login-continue,.login-or,.login-social,.login-foot{animation:loginItem .5s ease backwards}
