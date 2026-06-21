@@ -590,7 +590,6 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 .nav-clock,.nu-name{transition:opacity .3s ease}
 
 /* ============ 登入頁:視窗 + 圖示動畫 ============ */
-.login-screen{position:relative}
 .login-screen::before,.login-screen::after{content:'';position:absolute;border-radius:50%;filter:blur(82px);z-index:0;pointer-events:none}
 .login-screen::before{width:420px;height:420px;background:radial-gradient(circle,#99f6e4,transparent 70%);opacity:.5;top:-140px;right:-90px;animation:bgdrift1 20s ease-in-out infinite}
 .login-screen::after{width:400px;height:400px;background:radial-gradient(circle,#bae6fd,transparent 70%);opacity:.5;bottom:-140px;left:-90px;animation:bgdrift2 26s ease-in-out infinite}
