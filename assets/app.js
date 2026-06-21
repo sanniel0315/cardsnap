@@ -593,6 +593,7 @@ const ICON_CALL_SM = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
 const ICON_SMS = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v6A1.5 1.5 0 0 1 15.5 13H8l-4 3v-3H4.5A1.5 1.5 0 0 1 3 11.5z"/></svg>';
 const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>';
 const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>';
+const ICON_CAM_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-1.8h7.6L18 7h1.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="M12 16v-4m0 0-1.7 1.7M12 12l1.7 1.7"/></svg>';
 const ICON_DETAIL_EMPTY = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="7" y="12" width="34" height="24" rx="4"/><circle cx="17" cy="22" r="3.5"/><path d="M12 31c1.4-3 3.4-4.5 5-4.5s3.6 1.5 5 4.5" stroke-linecap="round"/><path d="M28 20h9M28 25h7" stroke-linecap="round"/></svg>';
 
 function renderGroupSelect() {
@@ -694,7 +695,7 @@ function deskDetailHTML(c) {
       <div class="dk-d-htext"><div class="dk-d-name">${esc(c.name || '未命名')}${c.favorite ? ' <span class="star">★</span>' : ''}</div>
       ${c.company ? `<div class="dk-d-sub">${esc(c.company)}</div>` : ''}${c.title ? `<div class="dk-d-sub muted">${esc(c.title)}</div>` : ''}</div>
     </div>
-    ${imgs.length ? `<div class="dk-d-imgs">${imgs.map(u => `<img src="${u}" alt="名片">`).join('')}</div>` : ''}
+    <div class="dk-d-imgs">${imgs.map((u, i) => `<div class="dk-ph"><img src="${u}" alt="名片"><button class="dk-ph-btn" data-photo="${i}">更換</button></div>`).join('')}<button class="dk-ph-add" data-photo="${imgs.length}">${ICON_CAM_UP}<span>${imgs.length ? '加一張' : '上傳名片照'}</span></button></div>
     <div class="dk-d-acts">
       <button class="dk-act" data-act="edit">${ICON_EDIT}<span>編輯</span></button>
       <button class="dk-act" data-act="fav">${c.favorite ? '★' : '☆'}<span>收藏</span></button>
@@ -732,6 +733,7 @@ function renderDesktop(list, data) {
     else if (a === 'vcard') download(new Blob([toVCard(c)], { type: 'text/vcard' }), `${c.name || 'card'}.vcf`);
     else if (a === 'del') { if (confirm('確定刪除這張名片?')) { addTombstone(c); contacts = contacts.filter(x => x.id !== c.id); saveTombstones(); detailId = null; save(); render(); toast('已刪除'); } }
   });
+  if (dEl && cur) dEl.querySelectorAll('[data-photo]').forEach(b => b.onclick = () => pickCardPhoto(cur.id, parseInt(b.dataset.photo, 10) || 0));
 }
 
 function renderTable(list, data) {
@@ -987,12 +989,14 @@ function openDetail(id) {
   $('#detailBody').innerHTML = carousel + summary + actions +
     `<div class="dc-fav"><span class="link-btn" id="favToggle">${c.favorite ? '★ 已收藏' : '☆ 收藏'}</span>` +
     `<span class="link-btn" id="dcReFront">重拍正面</span>` +
-    `<span class="link-btn" id="dcBack">${imgs.length > 1 ? '重拍背面' : '加拍背面'}</span></div>` +
+    `<span class="link-btn" id="dcBack">${imgs.length > 1 ? '重拍背面' : '加拍背面'}</span>` +
+    `<span class="link-btn" id="dcUpload">上傳照片</span></div>` +
     `<div class="dc-rows">${rows.join('')}</div>` + noteBlock;
 
   $('#favToggle').onclick = () => { c.favorite = !c.favorite; save(); render(); openDetail(id); };
   $('#dcEdit').onclick = () => { closeModal('#detailModal'); openEdit(id); };
   $('#dcShare').onclick = () => shareContact(c);
+  $('#dcUpload').onclick = () => pickCardPhoto(id, (c.images && c.images.length) ? c.images.length : 0);
   $('#dcReFront').onclick = () => recaptureFor(id, 0);
   $('#dcBack').onclick = () => recaptureFor(id, 1);
 
@@ -1015,6 +1019,27 @@ function openDetail(id) {
   openModal('#detailModal');
 }
 
+let photoTargetId = null, photoTargetSlot = 0;
+function pickCardPhoto(id, slot) { photoTargetId = id; photoTargetSlot = slot || 0; const inp = $('#cardPhotoInput'); if (inp) { inp.value = ''; inp.click(); } }
+async function storeCardPhoto(file) {
+  if (!file || !photoTargetId) return;
+  const c = contacts.find(x => x.id === photoTargetId); if (!c) return;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await loadImage(url);
+    const data = compressImage(img, 1100, 0.74);
+    URL.revokeObjectURL(url);
+    if (!data) { toast('圖片讀取失敗'); return; }
+    c.images = Array.isArray(c.images) ? c.images : (c.image ? [c.image] : []);
+    c.images[photoTargetSlot] = data;
+    c.image = c.images[0] || data;
+    c.updated = Date.now();
+    save(); render();
+    const dm = $('#detailModal');
+    if (dm && !dm.classList.contains('hidden') && detailId === c.id) openDetail(c.id);
+    toast('名片照片已更新');
+  } catch (e) { toast('上傳失敗:' + e.message); }
+}
 function recaptureFor(id, side = 0) {
   recaptureId = id;
   recaptureSide = side;
@@ -1508,6 +1533,7 @@ function bind() {
   $$('.export-opt').forEach(b => b.onclick = () => exportData(b.dataset.fmt));
   $('#btnImport').onclick = () => $('#importInput').click();
   $('#importInput').onchange = e => { if (e.target.files[0]) importFromFile(e.target.files[0]); };
+  if ($('#cardPhotoInput')) $('#cardPhotoInput').onchange = e => { if (e.target.files[0]) storeCardPhoto(e.target.files[0]); };
   $('#manualAdd').onclick = () => { closeModal('#captureModal'); openManual(); };
   $('#sortSelect').onchange = e => { sortBy = e.target.value; render(); };
   $('#groupSelect').onchange = e => { const v = e.target.value; activeGroup = v === '__all' ? null : (v === '__none' ? '' : v.slice(2)); render(); };

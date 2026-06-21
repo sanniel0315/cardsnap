@@ -622,3 +622,14 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 .login-continue:active{transform:scale(.97)}
 .lock-card{animation:loginPop .45s cubic-bezier(.2,.8,.2,1)}
 .lock-logo svg{animation:logoGlow 2.8s ease-in-out infinite}
+
+/* 桌面詳情:名片照片上傳 */
+.dk-d-imgs{align-items:flex-start}
+.dk-ph{position:relative;display:inline-block}
+.dk-ph img{width:280px;max-width:100%;border-radius:12px;border:1px solid #e2e8f0;display:block}
+.dk-ph-btn{position:absolute;top:8px;right:8px;background:rgba(15,23,42,.62);color:#fff;border:none;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px);opacity:0;transition:opacity .15s}
+.dk-ph:hover .dk-ph-btn{opacity:1}
+.dk-ph-add{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:150px;height:96px;border:1.5px dashed #cbd5e1;border-radius:12px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .18s,color .18s,background .18s}
+.dk-ph-add svg{width:24px;height:24px;transition:transform .2s}
+.dk-ph-add:hover{border-color:#14b8a6;color:#0d9488;background:#f0fdfa}
+.dk-ph-add:hover svg{transform:translateY(-2px) scale(1.08)}
