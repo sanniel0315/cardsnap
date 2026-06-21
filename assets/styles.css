@@ -598,10 +598,10 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 @property --ba{syntax:'<angle>';initial-value:0deg;inherits:false}
 .login-card{position:relative;z-index:1;animation:loginPop .5s cubic-bezier(.2,.8,.2,1),cardglow 3.4s ease-in-out .5s infinite}
 .login-card::before{content:'';position:absolute;inset:0;border-radius:22px;padding:1.8px;box-sizing:border-box;pointer-events:none;
-  background:conic-gradient(from var(--ba,0deg),rgba(56,189,248,0) 0deg,rgba(56,189,248,0) 300deg,rgba(94,234,212,.5) 326deg,#38bdf8 346deg,rgba(56,189,248,0) 360deg);
+  background:conic-gradient(from var(--ba,0deg),rgba(56,189,248,0) 0deg,rgba(56,189,248,0) 250deg,rgba(45,212,191,.12) 290deg,rgba(94,234,212,.5) 330deg,#5eead4 350deg,#eafffb 358deg,rgba(255,255,255,0) 360deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
   mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
-  animation:runborder 3s linear infinite}
+  animation:runborder 1.8s linear infinite}
 @keyframes runborder{to{--ba:360deg}}
 @keyframes cardglow{
   0%,100%{box-shadow:0 0 0 1.5px rgba(20,184,166,.45),0 0 24px rgba(20,184,166,.32),var(--shadow-lg)}
