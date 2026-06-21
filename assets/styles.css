@@ -588,3 +588,25 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 .dc-row-acts a:hover svg,.c-quick a:hover svg{transform:scale(1.22)}
 .empty-ic svg{animation:floaty 3.2s ease-in-out infinite}
 .nav-clock,.nu-name{transition:opacity .3s ease}
+
+/* ============ 登入頁:視窗 + 圖示動畫 ============ */
+.login-screen{position:relative}
+.login-screen::before,.login-screen::after{content:'';position:absolute;border-radius:50%;filter:blur(82px);z-index:0;pointer-events:none}
+.login-screen::before{width:420px;height:420px;background:radial-gradient(circle,#99f6e4,transparent 70%);opacity:.5;top:-140px;right:-90px;animation:bgdrift1 20s ease-in-out infinite}
+.login-screen::after{width:400px;height:400px;background:radial-gradient(circle,#bae6fd,transparent 70%);opacity:.5;bottom:-140px;left:-90px;animation:bgdrift2 26s ease-in-out infinite}
+.login-card{position:relative;z-index:1;animation:loginPop .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes loginPop{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+.login-brand .logo{animation:floaty 3.5s ease-in-out infinite}
+.login-brand,.login-title,.login-field,.login-row,.login-continue,.login-or,.login-social,.login-foot{animation:loginItem .5s ease backwards}
+.login-title{animation-delay:.05s}.login-field:nth-of-type(1){animation-delay:.1s}.login-field:nth-of-type(2){animation-delay:.15s}
+.login-continue{animation-delay:.2s}.login-social:nth-of-type(1){animation-delay:.26s}.login-social:nth-of-type(2){animation-delay:.31s}.login-social:nth-of-type(3){animation-delay:.36s}.login-foot{animation-delay:.42s}
+@keyframes loginItem{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.login-social{transition:border-color .16s,background .16s,transform .16s,box-shadow .16s}
+.login-social:hover{transform:translateY(-2px);box-shadow:0 10px 22px -14px rgba(13,148,136,.5)}
+.login-social .ls-ic svg{transition:transform .25s ease}
+.login-social:hover .ls-ic svg{transform:scale(1.18) rotate(-5deg)}
+.login-continue{transition:transform .15s,box-shadow .2s}
+.login-continue:hover{transform:translateY(-1px)}
+.login-continue:active{transform:scale(.97)}
+.lock-card{animation:loginPop .45s cubic-bezier(.2,.8,.2,1)}
+.lock-logo svg{animation:floaty 3.2s ease-in-out infinite}
