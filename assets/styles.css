@@ -595,12 +595,20 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 .login-screen::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,transparent 70%);opacity:.6;bottom:-150px;left:-90px;animation:loginbg2 19s ease-in-out infinite}
 @keyframes loginbg1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(54px,40px) scale(1.14)}}
 @keyframes loginbg2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-50px,-34px) scale(1.12)}}
+@property --ba{syntax:'<angle>';initial-value:0deg;inherits:false}
 .login-card{position:relative;z-index:1;animation:loginPop .5s cubic-bezier(.2,.8,.2,1),cardglow 3.4s ease-in-out .5s infinite}
+.login-card::before{content:'';position:absolute;inset:0;border-radius:22px;padding:1.8px;box-sizing:border-box;pointer-events:none;
+  background:conic-gradient(from var(--ba,0deg),rgba(20,184,166,0) 0deg,rgba(20,184,166,0) 175deg,#14b8a6 245deg,#5eead4 300deg,#7dd3fc 340deg,rgba(125,211,252,0) 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
+  animation:runborder 3s linear infinite}
+@keyframes runborder{to{--ba:360deg}}
 @keyframes cardglow{
   0%,100%{box-shadow:0 0 0 1.5px rgba(20,184,166,.45),0 0 24px rgba(20,184,166,.32),var(--shadow-lg)}
   50%{box-shadow:0 0 0 1.5px rgba(14,165,233,.6),0 0 38px rgba(14,165,233,.5),var(--shadow-lg)}}
 @keyframes loginPop{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
-.login-brand .logo{animation:floaty 3.5s ease-in-out infinite}
+.login-brand .logo{animation:logoGlow 2.6s ease-in-out infinite}
+@keyframes logoGlow{0%,100%{filter:drop-shadow(0 0 1px rgba(20,184,166,.45))}50%{filter:drop-shadow(0 0 8px rgba(14,165,233,.8))}}
 .login-brand,.login-title,.login-field,.login-row,.login-continue,.login-or,.login-social,.login-foot{animation:loginItem .5s ease backwards}
 .login-title{animation-delay:.05s}.login-field:nth-of-type(1){animation-delay:.1s}.login-field:nth-of-type(2){animation-delay:.15s}
 .login-continue{animation-delay:.2s}.login-social:nth-of-type(1){animation-delay:.26s}.login-social:nth-of-type(2){animation-delay:.31s}.login-social:nth-of-type(3){animation-delay:.36s}.login-foot{animation-delay:.42s}
@@ -613,4 +621,4 @@ body::after{width:420px;height:420px;background:radial-gradient(circle,#bae6fd,t
 .login-continue:hover{transform:translateY(-1px)}
 .login-continue:active{transform:scale(.97)}
 .lock-card{animation:loginPop .45s cubic-bezier(.2,.8,.2,1)}
-.lock-logo svg{animation:floaty 3.2s ease-in-out infinite}
+.lock-logo svg{animation:logoGlow 2.8s ease-in-out infinite}
