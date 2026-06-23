@@ -211,7 +211,33 @@
     return [...map.values()].sort((a, b) => (b.created || 0) - (a.created || 0));
   }
 
-  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge };
+  /* ---------- 名片資料正規化 / 清洗(Web 與 App 共用)---------- */
+  // 判斷亂碼 / 空白名片(解碼失敗、控制字元、Excel/zip 殘骸、無姓名也無公司)
+  function isJunkContact(x) {
+    if (!x) return true;
+    const blob = [x.name, x.company, x.title, x.address, x.note, x.website].join(' ');
+    if (/�/.test(blob)) return true;                  // 解碼失敗(替代字元 U+FFFD)
+    if (/[\x00-\x08\x0E-\x1F]/.test(blob)) return true;        // 控制字元
+    if (/PK\x03\x04|sharedStrings|xl\/worksheets|Content_Types|<\?xml/i.test(blob)) return true; // Excel/zip 殘骸
+    const name = String(x.name || '').trim();
+    const company = String(x.company || '').trim();
+    if (!name && !company) return true;                         // 空白名片
+    return false;
+  }
+  function dropJunk(arr) { return (Array.isArray(arr) ? arr : []).filter(c => !isJunkContact(c)); }
+
+  // 舊資料 → 新欄位(多電話 phones[]、雙面 images[]、分組 group)
+  function migrate(c) {
+    if (!Array.isArray(c.images)) c.images = c.image ? [c.image] : [];
+    if (c.images.length && !c.image) c.image = c.images[0];
+    if (!Array.isArray(c.phones)) c.phones = c.phone ? [{ label: '手機', value: c.phone }] : [];
+    if (c.phones.length && !c.phone) c.phone = c.phones[0].value;
+    if (typeof c.group !== 'string') c.group = '';
+    if (typeof c.source !== 'string') c.source = '';
+    return c;
+  }
+
+  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CardSnapCore = api;
 })(typeof self !== 'undefined' ? self : this);

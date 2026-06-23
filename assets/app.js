@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = window.CardSnapStore.KEY.contacts;
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -39,31 +39,8 @@ let selectMode = false;    // 多選模式
 let selected = new Set();
 let exportScope = null;    // null=全部;Set=僅選取
 
-function isJunkContact(x) {
-  if (!x) return true;
-  const blob = [x.name, x.company, x.title, x.address, x.note, x.website].join(' ');
-  if (/\uFFFD/.test(blob)) return true;                       // � 解碼失敗
-  if (/[\x00-\x08\x0E-\x1F]/.test(blob)) return true;        // 控制字元
-  if (/PK\x03\x04|sharedStrings|xl\/worksheets|Content_Types|<\?xml/i.test(blob)) return true; // Excel/zip 殘骸
-  const name = String(x.name || '').trim();
-  const company = String(x.company || '').trim();
-  if (!name && !company) return true;                         // 空白名片
-  return false;
-}
-function dropJunk(arr) { return (Array.isArray(arr) ? arr : []).filter(c => !isJunkContact(c)); }
-
 function load() {
   return dropJunk(window.CardSnapStore.getContacts().map(migrate));
-}
-/* 舊資料 → 新欄位(多電話 phones[]、雙面 images[]、分組 group) */
-function migrate(c) {
-  if (!Array.isArray(c.images)) c.images = c.image ? [c.image] : [];
-  if (c.images.length && !c.image) c.image = c.images[0];
-  if (!Array.isArray(c.phones)) c.phones = c.phone ? [{ label: '手機', value: c.phone }] : [];
-  if (c.phones.length && !c.phone) c.phone = c.phones[0].value;
-  if (typeof c.group !== 'string') c.group = '';
-  if (typeof c.source !== 'string') c.source = '';
-  return c;
 }
 /* phones[] → 同步主電話 + 去空白 */
 function syncPhones(c) {

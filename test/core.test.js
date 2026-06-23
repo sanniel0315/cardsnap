@@ -175,3 +175,33 @@ test('toVCard:有傳真時輸出 FAX 行', () => {
   const v = toVCard({ name: 'A', phone: '0912', fax: '02-1234567' });
   assert.match(v, /TEL;TYPE=FAX:02-1234567/);
 });
+
+/* ---------- 資料正規化(自 app.js 下沉,Web 與 App 共用)---------- */
+test('migrate:image→images[]、phone→phones[]、補 group/source', () => {
+  const c = core.migrate({ name: '王', image: 'd1', phone: '0912' });
+  assert.deepEqual(c.images, ['d1']);
+  assert.equal(c.phones[0].label, '手機');
+  assert.equal(c.phones[0].value, '0912');
+  assert.equal(c.group, '');
+  assert.equal(c.source, '');
+});
+
+test('migrate:已是新格式時不破壞既有 phones/images', () => {
+  const c = core.migrate({ name: '李', images: ['a', 'b'], phones: [{ label: '市話', value: '02-1' }] });
+  assert.deepEqual(c.images, ['a', 'b']);
+  assert.equal(c.image, 'a');           // 由 images[0] 補上
+  assert.equal(c.phone, '02-1');        // 由 phones[0] 補上
+});
+
+test('isJunkContact:亂碼(U+FFFD)、控制字元、空白名片 → true;正常 → false', () => {
+  assert.equal(core.isJunkContact({ name: '正�碼' }), true);   // 替代字元
+  assert.equal(core.isJunkContact({ name: '\x01\x02' }), true);     // 控制字元
+  assert.equal(core.isJunkContact({ name: '', company: '' }), true); // 空白
+  assert.equal(core.isJunkContact({ name: '王小明' }), false);
+});
+
+test('dropJunk:過濾亂碼/空白,保留正常名片', () => {
+  const out = core.dropJunk([{ name: '王' }, { name: '', company: '' }, { name: 'a�' }]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].name, '王');
+});
