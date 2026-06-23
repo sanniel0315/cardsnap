@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "python3 -m http.server 8080",
-    "lint": "node --check assets/core.js && node --check assets/app.js && node --check sw.js",
+    "lint": "node --check assets/core.js && node --check assets/store.js && node --check assets/app.js && node --check sw.js",
     "test": "node --test",
     "ci": "npm run lint && npm test"
   },

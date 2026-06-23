@@ -6,7 +6,7 @@
    ============================================================ */
 'use strict';
 
-const STORE_KEY = 'cardsnap.contacts.v1';
+const STORE_KEY = window.CardSnapStore.KEY.contacts;
 const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -33,7 +33,7 @@ let autoCapture = true;    // 對齊後自動擷取
 let detectRAF = null, detectCanvas = null, prevGrid = null, stableHits = 0, camReadyAt = 0, autoLocking = false;
 let recaptureSide = 0;     // 重拍/拍背面:0=正面 1=背面
 const SETTINGS_KEY = 'cardsnap.settings';
-const TOMB_KEY = 'cardsnap.tombstones';
+const TOMB_KEY = window.CardSnapStore.KEY.tombstones;
 let settings = loadSettings();
 let selectMode = false;    // 多選模式
 let selected = new Set();
@@ -53,9 +53,7 @@ function isJunkContact(x) {
 function dropJunk(arr) { return (Array.isArray(arr) ? arr : []).filter(c => !isJunkContact(c)); }
 
 function load() {
-  let arr = [];
-  try { arr = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { arr = []; }
-  return dropJunk(arr.map(migrate));
+  return dropJunk(window.CardSnapStore.getContacts().map(migrate));
 }
 /* 舊資料 → 新欄位(多電話 phones[]、雙面 images[]、分組 group) */
 function migrate(c) {
@@ -79,8 +77,8 @@ function loadSettings() {
   catch { return def; }
 }
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
-function loadTombstones() { try { return JSON.parse(localStorage.getItem(TOMB_KEY)) || []; } catch { return []; } }
-function saveTombstones() { try { localStorage.setItem(TOMB_KEY, JSON.stringify(tombstones)); } catch (e) {} }
+function loadTombstones() { return window.CardSnapStore.getTombstones(); }
+function saveTombstones() { window.CardSnapStore.setTombstones(tombstones); }
 function addTombstone(c) { if (!c) return; try { tombstones.push({ k: contactKey(c), ts: Date.now() }); } catch (e) {} }
 function allGroups() {
   const s = new Set();
@@ -93,7 +91,7 @@ function fmtDate(ts) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 }
 function save() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); }
+  try { window.CardSnapStore.setContacts(contacts); }
   catch (e) { toast('儲存空間已滿,請刪除部分名片或關閉照片'); }
   if (typeof schedulePush === 'function') schedulePush();
 }
