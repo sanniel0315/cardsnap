@@ -23,7 +23,7 @@ npm run ci      # lint + test,等同 CI
 ## 架構重點
 
 ### 純邏輯與 UI 的分離（重要）
-- **`assets/core.js`** — 無 DOM 的純函式，**同時供瀏覽器與 Node 測試使用**（用 UMD 風格 `module.exports` / `window.CardSnapCore` 雙導出）。所有可測試的解析/格式化/去重邏輯都放這裡。修改解析規則就改這裡並補測試。
+- **`assets/core.js`** — 無 DOM 的純函式，**同時供瀏覽器與 Node 測試使用**（用 UMD 風格 `module.exports` / `window.CardSnapCore` 雙導出）。所有可測試的解析/格式化/去重邏輯都放這裡。修改解析規則就改這裡並補測試。**這是共用商業邏輯的真實來源**；`packages/core`（`@cardsnap/core`）只是轉出它的 package 入口（含 `index.d.ts` 型別），供未來 React Native App 與打包工具 `import`。測試經 `packages/core` 入口跑，持續驗證此契約。
 - **`assets/app.js`**（~1600 行）— 全部 UI、狀態、相機、OCR 串接、事件綁定。從 `window.CardSnapCore` 取用核心函式。檔內以 `/* ===== 區塊名 ===== */` 分段（擷取流程、匯入、名單渲染、分組、批次、編輯、詳情/分享、匯出、Drive 同步、設定、事件綁定）。
 - **`assets/config.js`** — Google OAuth Client ID（雲端同步用）。
 

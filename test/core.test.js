@@ -1,7 +1,7 @@
 /* CardSnap 核心邏輯單元測試 — 用 Node 內建 test runner,零相依 */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseCard, toVCard, toCSV } = require('../assets/core.js');
+const { parseCard, toVCard, toCSV } = require('../packages/core'); // 經 @cardsnap/core 入口,順帶驗證共用模組契約
 
 test('parseCard：完整中文名片可解析所有欄位', () => {
   const raw = [
@@ -78,7 +78,7 @@ test('toCSV：空陣列只回表頭', () => {
 });
 
 /* ---------- 匯入 / 去重(新功能)---------- */
-const core = require('../assets/core.js');
+const core = require('../packages/core');
 
 test('parseCSV：可解析 toCSV 匯出的內容(round-trip)', () => {
   const csv = core.toCSV([

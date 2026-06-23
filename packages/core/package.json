@@ -1,0 +1,11 @@
+{
+  "name": "@cardsnap/core",
+  "version": "1.0.0",
+  "description": "CardSnap 共用商業邏輯(名片解析、vCard/CSV 匯入匯出、去重與同步合併)— 無 DOM,Web 與 React Native 共用",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["index.js", "index.d.ts", "README.md"],
+  "license": "MIT"
+}
