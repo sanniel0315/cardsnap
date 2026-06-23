@@ -16,12 +16,14 @@ create table if not exists public.users (
 
 -- ---- contacts:名片中繼資料(影像存使用者 Drive,此處僅存 image_drive_id 參照)----
 create table if not exists public.contacts (
-  id             uuid primary key default gen_random_uuid(),
+  -- id 用前端既有字串 id(Date.now+random),避免雙端 id 映射;owner_id 才是 RLS 依據
+  id             text primary key,
   owner_id       uuid not null references public.users(id) on delete cascade,
   name           text,
   company        text,
   title          text,
   phones         jsonb not null default '[]',      -- [{label,value}],對齊前端 phones[]
+  tags           jsonb not null default '[]',      -- 階段一以 jsonb 存;後台統計需要時再正規化到 contact_tags
   fax            text,
   tax_id         text,
   email          text,
@@ -49,8 +51,9 @@ create table if not exists public.tags (
   color    text,
   unique (owner_id, name)
 );
+-- contact_tags:保留供後續後台統計用;階段一前端同步走 contacts.tags(jsonb),暫不寫此表
 create table if not exists public.contact_tags (
-  contact_id uuid references public.contacts(id) on delete cascade,
+  contact_id text references public.contacts(id) on delete cascade,
   tag_id     uuid references public.tags(id) on delete cascade,
   primary key (contact_id, tag_id)
 );

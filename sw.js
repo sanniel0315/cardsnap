@@ -10,6 +10,7 @@ const SHELL = [
   './assets/styles.css',
   './assets/core.js',
   './assets/store.js',
+  './assets/supabase-sync.js',
   './assets/app.js',
   './assets/icon.svg',
   './manifest.webmanifest'

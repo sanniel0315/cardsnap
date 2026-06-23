@@ -1229,7 +1229,10 @@ async function cloudSync() {
   } catch (e) { setSyncState('idle'); toast('雲端同步失敗:' + e.message); }
   finally { clearTimeout(killer); syncing = false; }
 }
-function signIn() { if (storageMode() === 'drive') signInAndSync(); else cloudSignIn(); }
+function signIn() {
+  if (storageMode() === 'supabase') { supabaseSignIn(); return; }
+  if (storageMode() === 'drive') signInAndSync(); else cloudSignIn();
+}
 
 async function driveApi(url, opts) {
   const r = await fetch(url, Object.assign({ headers: { Authorization: 'Bearer ' + driveToken }, signal: syncSignal }, opts || {}));
@@ -1320,6 +1323,7 @@ async function doSync() {
 }
 
 function schedulePush() {
+  if (storageMode() === 'supabase') { if (typeof supabaseSchedulePush === 'function') supabaseSchedulePush(); return; }
   if (storageMode() === 'drive') { if (!driveToken) return; clearTimeout(drivePushT); drivePushT = setTimeout(doSync, 2500); }
   else { if (!cloudToken) return; clearTimeout(cloudPushT); cloudPushT = setTimeout(cloudSync, 2500); }
 }
@@ -1576,6 +1580,7 @@ if (!localStorage.getItem('cardsnap.authed') && (typeof googleClientId !== 'func
 if (settings.pinHash) showLock();
 initDrive();
 initCloud();
+if (typeof initSupabase === 'function') initSupabase();
 initSyncStatus();
 updateClock(); setInterval(updateClock, 30000);
 renderNavUser();

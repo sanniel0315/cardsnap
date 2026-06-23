@@ -1,0 +1,133 @@
+/* ============================================================
+   CardSnap Supabase 同步(階段 1b/1c)— 作為第三種 storageMode
+   - 與既有 Drive/owner-cloud 同步「並存」,完全不改動 Drive 設計
+   - 未設定金鑰(config.supabaseUrl/anonKey 空)時整個模組 no-op
+   - 對帳沿用 core.syncMerge(較新者勝)+ 本地 tombstone 刪除傳播
+   - 影像不入 DB(續存使用者裝置/Drive);tags 以 jsonb 同步
+   依賴:全域 supabase(SDK)、CardSnapStore、以及 app.js 暴露的
+        contacts / tombstones / dropJunk / contactKey / render /
+        setSyncState / markSynced / toast / migrate
+   ============================================================ */
+(function () {
+  'use strict';
+
+  let sb = null;            // Supabase client(未設定金鑰則保持 null)
+  let sbUserId = null;      // 登入後的 auth uid
+  let sbSyncing = false;
+  let sbPushT = null;
+
+  function cfg() { return (typeof window !== 'undefined' && window.CARDSNAP_CONFIG) || {}; }
+  function enabled() { return !!(cfg().supabaseUrl && cfg().supabaseAnonKey); }
+
+  /* ---- 形狀轉換:DB(snake_case)↔ 前端 contact ---- */
+  function fromDb(r) {
+    const phones = Array.isArray(r.phones) ? r.phones : [];
+    return {
+      id: r.id,
+      name: r.name || '', company: r.company || '', title: r.title || '',
+      phones, phone: (phones[0] && phones[0].value) || '',
+      tags: Array.isArray(r.tags) ? r.tags : [],
+      fax: r.fax || '', taxId: r.tax_id || '',
+      email: r.email || '', website: r.website || '', address: r.address || '',
+      note: r.note || '', group: r.group || '', source: r.source || '',
+      favorite: !!r.is_favorite, imageDriveId: r.image_drive_id || '',
+      image: '', images: [],
+      created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      updated: r.updated_at ? new Date(r.updated_at).getTime() : 0,
+    };
+  }
+  function toDb(c) {
+    return {
+      id: c.id, owner_id: sbUserId,
+      name: c.name || null, company: c.company || null, title: c.title || null,
+      phones: Array.isArray(c.phones) ? c.phones : [],
+      tags: Array.isArray(c.tags) ? c.tags : [],
+      fax: c.fax || null, tax_id: c.taxId || null,
+      email: c.email || null, website: c.website || null, address: c.address || null,
+      note: c.note || null, group: c.group || '', source: c.source || '',
+      is_favorite: !!c.favorite, image_drive_id: c.imageDriveId || null,
+      created_at: new Date(c.created || Date.now()).toISOString(),
+      updated_at: new Date(c.updated || c.created || Date.now()).toISOString(),
+    };
+  }
+
+  /* ---- 初始化:建 client、還原 session、處理 OAuth 回跳 ---- */
+  function initSupabase() {
+    if (!enabled()) return;
+    if (typeof supabase === 'undefined' || !supabase.createClient) { setTimeout(initSupabase, 600); return; }
+    sb = supabase.createClient(cfg().supabaseUrl, cfg().supabaseAnonKey, {
+      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+    });
+    sb.auth.onAuthStateChange((_event, session) => {
+      sbUserId = session && session.user ? session.user.id : null;
+      if (sbUserId && typeof storageMode === 'function' && storageMode() === 'supabase') supabaseSync();
+    });
+  }
+
+  /* ---- 登入:Google OAuth(回跳回本頁,由 detectSessionInUrl 接手)---- */
+  async function supabaseSignIn() {
+    if (!enabled()) { toast('Supabase 尚未設定(需填入 supabaseUrl / anonKey)'); return; }
+    if (!sb) { initSupabase(); toast('初始化中,請再按一次'); return; }
+    const { data } = await sb.auth.getSession();
+    if (data && data.session) { sbUserId = data.session.user.id; supabaseSync(); return; }
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.href.split('#')[0] },
+    });
+    if (error) toast('登入失敗:' + error.message);
+  }
+
+  /* ---- 雙向對帳:pull → syncMerge → 套用 tombstone → push/delete → 回寫本地 ---- */
+  async function supabaseSync() {
+    if (!sb || !sbUserId || sbSyncing) return;
+    sbSyncing = true; setSyncState('syncing');
+    const killer = setTimeout(() => { sbSyncing = false; setSyncState('idle'); }, 25000);
+    try {
+      const { data: rows, error } = await sb.from('contacts').select('*');
+      if (error) throw new Error(error.message);
+      const remote = (rows || []).map(fromDb);
+
+      let merged = syncMerge(contacts, remote);
+
+      // 套用本地 tombstones:墓碑較新者視為已刪;收集需從遠端刪除的 id
+      const tmap = new Map((tombstones || []).map(t => [t.k, Number(t.ts || 0)]));
+      const remoteIds = new Set(remote.map(r => r.id));
+      const toDelete = [];
+      merged = merged.filter(c => {
+        const ts = tmap.get(contactKey(c));
+        if (ts && ts >= Number(c.updated || c.created || 0)) { if (remoteIds.has(c.id)) toDelete.push(c.id); return false; }
+        return true;
+      });
+      merged = dropJunk(merged);
+
+      // 推:全量 upsert(冪等,資料量小);刪:遠端已被本地墓碑覆蓋者
+      if (merged.length) {
+        const { error: ue } = await sb.from('contacts').upsert(merged.map(toDb));
+        if (ue) throw new Error(ue.message);
+      }
+      if (toDelete.length) {
+        const { error: de } = await sb.from('contacts').delete().in('id', toDelete);
+        if (de) throw new Error(de.message);
+      }
+
+      contacts = merged;
+      window.CardSnapStore.setContacts(contacts);
+      render();
+      setSyncState('synced'); if (typeof markSynced === 'function') markSynced();
+    } catch (e) {
+      setSyncState('idle'); toast('Supabase 同步失敗:' + (e && e.message ? e.message : e));
+    } finally { clearTimeout(killer); sbSyncing = false; }
+  }
+
+  /* ---- 本地變更後的 debounce 推送(由 app.js schedulePush 呼叫)---- */
+  function supabaseSchedulePush() {
+    if (!sb || !sbUserId) return;
+    clearTimeout(sbPushT); sbPushT = setTimeout(supabaseSync, 2500);
+  }
+
+  // 暴露給 app.js(掛在 window,沿用本專案全域風格)
+  window.initSupabase = initSupabase;
+  window.supabaseSignIn = supabaseSignIn;
+  window.supabaseSync = supabaseSync;
+  window.supabaseSchedulePush = supabaseSchedulePush;
+})();

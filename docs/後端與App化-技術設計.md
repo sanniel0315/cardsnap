@@ -258,4 +258,24 @@ const Store = {
 - **資料遷移**：現有使用者 localStorage / Drive 既有資料需一次性匯入 Supabase；需寫遷移腳本並在 staging 演練，避免去重鍵不一致造成重複或遺失。
 - **`app.js` 體積**（~1600 行、UI 與儲存耦合）：抽 `Store` 時要小步重構、隨時可回退，避免大改一次性破壞。
 - **離線/線上衝突**：沿用 `syncMerge`（較新者勝）+ tombstone；需測「離線編輯 vs 他端編輯」的合併結果。
+
+---
+
+## 12. 附錄：1b/1c 實作現況（已落地，待金鑰驗證）
+
+為「不破壞 Drive 設計、最小侵入」，Supabase **不重寫資料層**，而是作為**第三種 `storageMode`（`'supabase'`）**與既有 Drive/owner-cloud 並存：
+
+- `assets/supabase-sync.js`：client 初始化、Google OAuth 登入、雙向對帳（pull → `syncMerge` → 套用 tombstone → upsert/delete → 回寫本地）。無金鑰時整個模組 no-op。
+- `app.js`：`signIn()` / `schedulePush()` 各加 `supabase` 分支，啟動呼叫 `initSupabase()`；Drive/cloud 兩條路徑未動。
+- `assets/config.js`：新增 `supabaseUrl` / `supabaseAnonKey`（留空＝停用）。
+- `supabase/migrations/0001_init_schema.sql`：`contacts.id` 改 `text`（直接用前端既有 id，免雙端映射）；`tags` 暫以 `jsonb` 同步（`contact_tags` 表保留供後台統計）。
+- 影像不入 DB（續存裝置；1d 再搬 Drive）。
+
+**簡化取捨（刻意，非遺漏）**：全量 upsert（冪等、資料量小）；tags 不正規化；影像不同步。
+
+**金鑰到位後的驗證清單**：
+1. Supabase Dashboard 套用 migration、啟用 **Google provider**（填 client id/secret）、Authorized redirect 加上 app 網域。
+2. `config.js` 填 `supabaseUrl` / `supabaseAnonKey`。
+3. 兩測試帳號驗 **RLS**（A 讀不到 B）。
+4. 兩裝置同帳號 CRUD + 刪除 → 對帳與 tombstone 傳播正確。
 ```

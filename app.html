@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
 <div id="app">
@@ -249,6 +250,7 @@
         <label>儲存位置
           <select id="set_storage">
             <option value="cloud">CardSnap 雲端(預設)</option>
+            <option value="supabase">CardSnap 雲端(Supabase)</option>
             <option value="drive">我自己的 Google Drive</option>
           </select></label>
         <label>預設排序
@@ -370,6 +372,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./assets/core.js?v=__BUILD_ID__" defer></script>
 <script src="./assets/store.js?v=__BUILD_ID__" defer></script>
+<script src="./assets/supabase-sync.js?v=__BUILD_ID__" defer></script>
 <script src="./assets/app.js?v=__BUILD_ID__" defer></script>
 </body>
 </html>
