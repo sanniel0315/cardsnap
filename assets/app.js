@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = window.CardSnapStore.KEY.contacts;
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk, fillMissing } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -298,20 +298,25 @@ function lockAndCapture() {
   setTimeout(() => { captureFromCamera(); }, 280);
 }
 
+function finishRecapture(c, msg) {
+  recaptureId = null; recaptureSide = 0;
+  $('#ocrStatus').classList.add('hidden');
+  closeModal('#captureModal');
+  if (msg) toast(msg);
+  if (c) openDetail(c.id);
+}
+
 async function recognize(source, previewUrl) {
-  // 重拍:只替換照片,不做 OCR
+  // 重拍 / 拍背面:先確保照片更新(保留原本「至少存照片」的保證),稍後再用 OCR 補缺漏欄位
+  let recapC = null;
   if (recaptureId) {
-    const c = contacts.find(x => x.id === recaptureId);
-    if (c) {
-      c.images = c.images || [];
-      c.images[recaptureSide] = lastImage || c.images[recaptureSide];
-      c.image = c.images[0] || c.image;
-      c.updated = Date.now(); save(); render();
+    recapC = contacts.find(x => x.id === recaptureId);
+    if (recapC) {
+      recapC.images = recapC.images || [];
+      recapC.images[recaptureSide] = lastImage || recapC.images[recaptureSide];
+      recapC.image = recapC.images[0] || recapC.image;
+      recapC.updated = Date.now(); save(); render();
     }
-    const side = recaptureSide; recaptureId = null; recaptureSide = 0;
-    closeModal('#captureModal'); toast(side ? '已更新背面照片' : '已更新名片照片');
-    if (c) openDetail(c.id);
-    return;
   }
   $('#preview').src = previewUrl;
   $('#dropzone').classList.add('hidden');
@@ -334,6 +339,7 @@ async function recognize(source, previewUrl) {
         text = null;
         // 只用本機:失敗就停,不退回(讓你確定有沒有走地端)
         if (customEp && settings.forceEndpoint) {
+          if (recapC) { finishRecapture(recapC, '本機 OCR 連線失敗,照片已更新(未補欄位)'); return; }
           toast('本機 OCR 連線失敗,已停止(設定為只用本機):' + (e && e.message ? e.message : e));
           $('#ocrStatus').classList.add('hidden');
           resetCapture(); startCamera();
@@ -363,6 +369,16 @@ async function recognize(source, previewUrl) {
     $('#ocrText').textContent = '辨識完成';
     await new Promise(r => setTimeout(r, 420));
     const fields = remoteFields || parseCard(lastOcrRaw);
+
+    // 重拍 / 拍背面:把辨識到的欄位補進目前「缺」的欄位(不覆蓋已有值、電話去重合併)
+    if (recapC) {
+      const side = recaptureSide;
+      fillMissing(recapC, fields);
+      recapC.updated = Date.now(); save(); render();
+      finishRecapture(recapC, (side ? '已掃背面' : '已重掃正面') + ',並補齊缺漏欄位');
+      return;
+    }
+
     if (usedEngine && !burstMode) toast('辨識來源:' + usedEngine);
 
     // 連拍模式:自動建檔,回到相機繼續
@@ -385,6 +401,7 @@ async function recognize(source, previewUrl) {
     openEdit(null, fields, lastOcrRaw);
     if (!lastOcrRaw) toast('沒辨識到文字,請手動填寫或重拍');
   } catch (e) {
+    if (recapC) { finishRecapture(recapC, '辨識失敗,照片已更新(未補欄位)'); return; }
     toast('辨識失敗:' + e.message);
     resetCapture();
     startCamera();

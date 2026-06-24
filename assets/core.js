@@ -237,7 +237,31 @@
     return c;
   }
 
-  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate };
+  // 把 extra 的欄位「補進」base 目前空缺的欄位(不覆蓋已有值)。
+  // 用於名片正反面互補:掃背面/重拍時,只填 base 缺的欄位、電話則去重合併。
+  function fillMissing(base, extra) {
+    base = base || {}; extra = extra || {};
+    const TEXT = ['name', 'company', 'title', 'email', 'website', 'address', 'fax', 'taxId', 'note'];
+    for (const k of TEXT) {
+      if (!String(base[k] || '').trim() && String(extra[k] || '').trim()) base[k] = extra[k];
+    }
+    const exPhones = Array.isArray(extra.phones) && extra.phones.length
+      ? extra.phones
+      : (extra.phone ? [{ label: '手機', value: extra.phone }] : []);
+    if (exPhones.length) {
+      base.phones = Array.isArray(base.phones) ? base.phones.slice()
+        : (base.phone ? [{ label: '手機', value: base.phone }] : []);
+      const seen = new Set(base.phones.map(p => String(p.value || '').replace(/\D/g, '')).filter(Boolean));
+      for (const p of exPhones) {
+        const d = String(p.value || '').replace(/\D/g, '');
+        if (d && !seen.has(d)) { base.phones.push(p); seen.add(d); }
+      }
+      if (!String(base.phone || '').trim() && base.phones[0]) base.phone = base.phones[0].value;
+    }
+    return base;
+  }
+
+  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CardSnapCore = api;
 })(typeof self !== 'undefined' ? self : this);

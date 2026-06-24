@@ -205,3 +205,30 @@ test('dropJunk:過濾亂碼/空白,保留正常名片', () => {
   assert.equal(out.length, 1);
   assert.equal(out[0].name, '王');
 });
+
+/* ---------- 正反面欄位互補(fillMissing)---------- */
+test('fillMissing:正面人名 + 背面資料 → 只補空欄位,不覆蓋人名', () => {
+  const front = { name: '王小明', phones: [{ label: '手機', value: '0912-345-678' }], phone: '0912-345-678' };
+  const back = { name: 'WONG', company: '宏碁', email: 'a@b.com', phones: [{ label: '市話', value: '02-1234567' }] };
+  const r = core.fillMissing(front, back);
+  assert.equal(r.name, '王小明');          // 已有人名 → 不被背面覆蓋
+  assert.equal(r.company, '宏碁');          // 缺 → 補上
+  assert.equal(r.email, 'a@b.com');
+  assert.equal(r.phones.length, 2);         // 兩面電話合併
+  assert.equal(r.phone, '0912-345-678');    // 主電話不變
+});
+
+test('fillMissing:重複電話(去符號相同)不重複加入', () => {
+  const r = core.fillMissing(
+    { phones: [{ label: '手機', value: '0912-345-678' }], phone: '0912-345-678' },
+    { phone: '0912 345 678' });
+  assert.equal(r.phones.length, 1);
+});
+
+test('fillMissing:正面只有人名、背面才有全部資料的典型情境', () => {
+  const r = core.fillMissing({ name: '陳大文' }, { company: 'ACME', title: 'PM', email: 'x@acme.com', phone: '0922000111' });
+  assert.equal(r.name, '陳大文');
+  assert.equal(r.company, 'ACME');
+  assert.equal(r.title, 'PM');
+  assert.equal(r.phone, '0922000111');
+});
