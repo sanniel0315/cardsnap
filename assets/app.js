@@ -20,6 +20,8 @@ let activeGroup = null;   // null=全部, ''=未分組, 其他=分組名
 let groupTarget = null;
 let query = '';
 let editingId = null;
+let editScanBack = false;   // 編輯頁「掃背面補欄位」模式(雙面新增)
+let editFrontImage = '', editBackImage = '', editFrontRaw = '';  // 雙面新增:正/背面影像與正面原始文字
 let lastOcrRaw = '';
 let detailId = null;
 let favView = false;   // 桌面側欄「收藏」檢視
@@ -172,6 +174,7 @@ function preprocess(src) {
    ============================================================ */
 function openCapture() {
   burstMode = false; burstCount = 0; recaptureId = null;
+  editScanBack = false; editFrontImage = ''; editBackImage = ''; editFrontRaw = '';
   $('#burstToggle').classList.remove('on');
   $('#burstCount').classList.add('hidden');
   resetCapture();
@@ -340,6 +343,7 @@ async function recognize(source, previewUrl) {
         // 只用本機:失敗就停,不退回(讓你確定有沒有走地端)
         if (customEp && settings.forceEndpoint) {
           if (recapC) { finishRecapture(recapC, '本機 OCR 連線失敗,照片已更新(未補欄位)'); return; }
+          if (editScanBack) { editScanBack = false; closeModal('#captureModal'); openEdit(null, readEditForm(), editFrontRaw); toast('本機 OCR 連線失敗,背面未補'); return; }
           toast('本機 OCR 連線失敗,已停止(設定為只用本機):' + (e && e.message ? e.message : e));
           $('#ocrStatus').classList.add('hidden');
           resetCapture(); startCamera();
@@ -379,6 +383,18 @@ async function recognize(source, previewUrl) {
       return;
     }
 
+    // B. 雙面新增:在「確認名片資料」頁掃背面 → 欄位補進空缺處,留在編輯頁繼續確認
+    if (editScanBack) {
+      editScanBack = false;
+      editBackImage = lastImage || '';
+      const merged = fillMissing(readEditForm(), fields);
+      const mergedRaw = [editFrontRaw, lastOcrRaw].filter(Boolean).join('\n— 背面 —\n');
+      closeModal('#captureModal');
+      openEdit(null, merged, mergedRaw);
+      toast('已掃背面,補上缺漏欄位');
+      return;
+    }
+
     if (usedEngine && !burstMode) toast('辨識來源:' + usedEngine);
 
     // 連拍模式:自動建檔,回到相機繼續
@@ -402,6 +418,7 @@ async function recognize(source, previewUrl) {
     if (!lastOcrRaw) toast('沒辨識到文字,請手動填寫或重拍');
   } catch (e) {
     if (recapC) { finishRecapture(recapC, '辨識失敗,照片已更新(未補欄位)'); return; }
+    if (editScanBack) { editScanBack = false; closeModal('#captureModal'); openEdit(null, readEditForm(), editFrontRaw); toast('背面辨識失敗,欄位未變更'); return; }
     toast('辨識失敗:' + e.message);
     resetCapture();
     startCamera();
@@ -884,13 +901,15 @@ function openEdit(id, fields, raw) {
   $('#f_tags').value = (c.tags || []).join(', ');
   $('#f_note').value = c.note || '';
   $('#rawText').textContent = raw || c.raw || '(無)';
+  if (id) { editScanBack = false; editFrontImage = ''; editBackImage = ''; editFrontRaw = ''; }
   $('#btnDelete').classList.toggle('hidden', !id);
+  $('#btnScanBack').classList.toggle('hidden', !!id);   // 只在新增(確認名片資料)時提供掃背面
   openModal('#editModal');
 }
 
-function saveEdit() {
+function readEditForm() {
   const phones = readPhones();
-  const data = {
+  return {
     name: $('#f_name').value.trim(),
     company: $('#f_company').value.trim(),
     title: $('#f_title').value.trim(),
@@ -904,8 +923,12 @@ function saveEdit() {
     group: $('#f_group').value.trim(),
     tags: $('#f_tags').value.split(',').map(t => t.trim()).filter(Boolean),
     note: $('#f_note').value.trim(),
-    updated: Date.now(),
   };
+}
+
+function saveEdit() {
+  const data = readEditForm();
+  data.updated = Date.now();
   if (!data.name && !data.company && !data.phone && !data.email) {
     toast('至少填入姓名、公司、電話或 email 其中之一'); return;
   }
@@ -913,12 +936,26 @@ function saveEdit() {
     const c = contacts.find(x => x.id === editingId);
     Object.assign(c, data);
   } else {
+    // 雙面新增:正面 + 背面影像(去重);一般情況用單張 lastImage
+    const imgs = [...new Set([editFrontImage || lastImage, editBackImage].filter(Boolean))];
     contacts.unshift(migrate({ id: uid(), created: Date.now(), favorite: false, raw: lastOcrRaw,
-      image: lastImage, images: lastImage ? [lastImage] : [], source: lastImage ? '拍照' : '手動', ...data }));
+      image: imgs[0] || '', images: imgs, source: imgs.length ? '拍照' : '手動', ...data }));
   }
   save(); render(); closeModal('#editModal'); resetCapture();
   toast(editingId ? '已更新' : '已建檔');
   editingId = null; lastOcrRaw = ''; lastImage = '';
+  editScanBack = false; editFrontImage = ''; editBackImage = ''; editFrontRaw = '';
+}
+
+// 編輯頁掃背面:保留正面資料,開相機掃背面 → OCR 後補進空缺欄位(見 recognize 的 editScanBack 分支)
+function scanBackForEdit() {
+  editScanBack = true;
+  editFrontRaw = lastOcrRaw;                    // 保留正面原始文字
+  editFrontImage = editFrontImage || lastImage; // 保留正面影像
+  closeModal('#editModal');
+  resetCapture();
+  openModal('#captureModal');
+  startCamera();
 }
 
 /* ============================================================
@@ -1472,6 +1509,7 @@ function bind() {
 
   // 編輯
   $('#btnSave').onclick = saveEdit;
+  $('#btnScanBack').onclick = scanBackForEdit;
   $('#btnDelete').onclick = () => {
     if (editingId && confirm('確定刪除這張名片?')) {
       const _c = contacts.find(x => x.id === editingId); if (_c) addTombstone(_c);
