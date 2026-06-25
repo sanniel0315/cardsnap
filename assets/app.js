@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = window.CardSnapStore.KEY.contacts;
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk, fillMissing } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk, fillMissing, reconcile } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);

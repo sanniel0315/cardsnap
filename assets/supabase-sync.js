@@ -77,41 +77,43 @@
     if (error) toast('登入失敗:' + error.message);
   }
 
-  /* ---- 雙向對帳:pull → syncMerge → 套用 tombstone → push/delete → 回寫本地 ---- */
+  /* ---- 雙向對帳:此處只做 I/O,對帳決策交給 core.reconcile(Web/App 共用)----
+     拉 contacts + tombstones → core.reconcile → upsert/delete/回寫;
+     墓碑同步到 Supabase,讓「跨裝置刪除」不會復活。 */
   async function supabaseSync() {
     if (!sb || !sbUserId || sbSyncing) return;
     sbSyncing = true; setSyncState('syncing');
     const killer = setTimeout(() => { sbSyncing = false; setSyncState('idle'); }, 25000);
     try {
-      const { data: rows, error } = await sb.from('contacts').select('*');
-      if (error) throw new Error(error.message);
-      const remote = (rows || []).map(fromDb);
+      const [cRes, tRes] = await Promise.all([
+        sb.from('contacts').select('*'),
+        sb.from('tombstones').select('*'),
+      ]);
+      if (cRes.error) throw new Error(cRes.error.message);
+      if (tRes.error) throw new Error(tRes.error.message);
+      const remote = (cRes.data || []).map(fromDb);
+      const remoteTombs = (tRes.data || []).map(t => ({ k: t.k, ts: Number(t.ts || 0) }));
 
-      let merged = syncMerge(contacts, remote);
+      // 純對帳(無 I/O):算出最終名單、要 upsert、要刪、合併後墓碑
+      const out = reconcile(contacts, remote, tombstones, remoteTombs);
 
-      // 套用本地 tombstones:墓碑較新者視為已刪;收集需從遠端刪除的 id
-      const tmap = new Map((tombstones || []).map(t => [t.k, Number(t.ts || 0)]));
-      const remoteIds = new Set(remote.map(r => r.id));
-      const toDelete = [];
-      merged = merged.filter(c => {
-        const ts = tmap.get(contactKey(c));
-        if (ts && ts >= Number(c.updated || c.created || 0)) { if (remoteIds.has(c.id)) toDelete.push(c.id); return false; }
-        return true;
-      });
-      merged = dropJunk(merged);
-
-      // 推:全量 upsert(冪等,資料量小);刪:遠端已被本地墓碑覆蓋者
-      if (merged.length) {
-        const { error: ue } = await sb.from('contacts').upsert(merged.map(toDb));
-        if (ue) throw new Error(ue.message);
+      if (out.toUpsert.length) {
+        const { error } = await sb.from('contacts').upsert(out.toUpsert.map(toDb));
+        if (error) throw new Error(error.message);
       }
-      if (toDelete.length) {
-        const { error: de } = await sb.from('contacts').delete().in('id', toDelete);
-        if (de) throw new Error(de.message);
+      if (out.toDelete.length) {
+        const { error } = await sb.from('contacts').delete().in('id', out.toDelete);
+        if (error) throw new Error(error.message);
+      }
+      if (out.tombstones.length) {
+        const { error } = await sb.from('tombstones').upsert(out.tombstones.map(t => ({ owner_id: sbUserId, k: t.k, ts: t.ts })));
+        if (error) throw new Error(error.message);
       }
 
-      contacts = merged;
+      contacts = out.merged;
       window.CardSnapStore.setContacts(contacts);
+      tombstones = out.tombstones;
+      if (typeof saveTombstones === 'function') saveTombstones();
       render();
       setSyncState('synced'); if (typeof markSynced === 'function') markSynced();
     } catch (e) {

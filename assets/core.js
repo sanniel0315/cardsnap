@@ -261,7 +261,43 @@
     return base;
   }
 
-  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing };
+  /* ---------- 墓碑(刪除傳播)+ 同步對帳(Web 與 App 共用)---------- */
+  // 合併兩端墓碑:同鍵取較新 ts,清掉超過 180 天的舊墓碑
+  function mergeTombstones(a, b) {
+    const map = new Map();
+    for (const t of [...(a || []), ...(b || [])]) {
+      if (!t || !t.k) continue;
+      const ts = Number(t.ts || 0);
+      const prev = map.get(t.k);
+      if (!prev || ts >= prev.ts) map.set(t.k, { k: t.k, ts });
+    }
+    const cutoff = Date.now() - 180 * 86400000;
+    return [...map.values()].filter(t => t.ts >= cutoff);
+  }
+  // 套用墓碑:墓碑 ts >= 該聯絡人 updated 視為已刪,過濾掉
+  function applyTombstones(contacts, tombs) {
+    const tm = new Map((tombs || []).map(t => [t.k, Number(t.ts || 0)]));
+    return (Array.isArray(contacts) ? contacts : []).filter(c => {
+      const ts = tm.get(contactKey(c));
+      return !(ts && ts >= Number(c.updated || c.created || 0));
+    });
+  }
+  // 同步對帳(純決策,不碰 I/O):給定本地/遠端名片與兩端墓碑,
+  // 算出最終名單 merged、要 upsert 的、要從遠端刪除的 id、合併後的墓碑。
+  // Web(supabase-sync)與未來 RN App 共用同一套,各自只負責讀寫。
+  function reconcile(local, remote, localTombs, remoteTombs) {
+    remote = Array.isArray(remote) ? remote : [];
+    const tombstones = mergeTombstones(localTombs, remoteTombs);
+    const merged = dropJunk(applyTombstones(syncMerge(local, remote), tombstones));
+    const mergedKeys = new Set(merged.map(contactKey));
+    const toDelete = [];           // 遠端有、但對帳後不該存在(被墓碑刪或被判為髒)→ 刪遠端
+    for (const r of remote) {
+      if (!mergedKeys.has(contactKey(r)) && r.id) toDelete.push(r.id);
+    }
+    return { merged, toUpsert: merged, toDelete, tombstones };
+  }
+
+  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing, mergeTombstones, applyTombstones, reconcile };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CardSnapCore = api;
 })(typeof self !== 'undefined' ? self : this);

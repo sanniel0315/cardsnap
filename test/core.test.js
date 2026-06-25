@@ -232,3 +232,49 @@ test('fillMissing:正面只有人名、背面才有全部資料的典型情境',
   assert.equal(r.title, 'PM');
   assert.equal(r.phone, '0922000111');
 });
+
+/* ---------- 墓碑 + 同步對帳(reconcile,跨端共用)---------- */
+test('mergeTombstones:同鍵取較新 ts、清掉超過 180 天的舊墓碑', () => {
+  const now = Date.now();
+  const r = core.mergeTombstones([{ k: 'e:a', ts: now - 1000 }], [{ k: 'e:a', ts: now }, { k: 'p:123', ts: now }]);
+  assert.equal(r.find(t => t.k === 'e:a').ts, now);
+  assert.equal(r.length, 2);
+  assert.equal(core.mergeTombstones([{ k: 'e:old', ts: now - 200 * 86400000 }], []).length, 0);
+});
+
+test('applyTombstones:墓碑 ts >= updated 的聯絡人會被刪掉', () => {
+  const now = Date.now();
+  const r = core.applyTombstones(
+    [{ email: 'a@b.com', updated: now - 1000 }, { email: 'c@d.com', updated: now }],
+    [{ k: 'e:a@b.com', ts: now }]);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].email, 'c@d.com');
+});
+
+test('reconcile:遠端墓碑刪掉本地殘留(跨裝置刪除「不復活」)', () => {
+  const now = Date.now();
+  const local = [{ id: 'x1', name: '王小明', email: 'a@b.com', updated: now - 5000 }]; // 本地還殘留 X
+  const remoteTombs = [{ k: 'e:a@b.com', ts: now }];                                   // 別台刪了 X(較新)
+  // 對照:沒有遠端墓碑時 X 會保留;有墓碑才刪 → 真正驗證墓碑而非 dropJunk
+  assert.equal(core.reconcile(local, [], [], []).merged.length, 1);
+  const r = core.reconcile(local, [], [], remoteTombs);
+  assert.equal(r.merged.length, 0, 'X 不應復活');
+  assert.equal(r.tombstones.length, 1);
+});
+
+test('reconcile:本地刪除傳播到遠端(toDelete 含遠端 id)', () => {
+  const now = Date.now();
+  const r = core.reconcile([], [{ id: 'x1', name: '王小明', email: 'a@b.com', updated: now - 5000 }], [{ k: 'e:a@b.com', ts: now }], []);
+  assert.equal(r.merged.length, 0);
+  assert.deepEqual(r.toDelete, ['x1']);
+});
+
+test('reconcile:雙方各有不同名片 → 聯集、皆 upsert、無刪除', () => {
+  const now = Date.now();
+  const r = core.reconcile(
+    [{ id: 'a', name: '甲', email: 'a@x.com', updated: now }],
+    [{ id: 'b', name: '乙', email: 'b@x.com', updated: now }], [], []);
+  assert.equal(r.merged.length, 2);
+  assert.equal(r.toUpsert.length, 2);
+  assert.equal(r.toDelete.length, 0);
+});
