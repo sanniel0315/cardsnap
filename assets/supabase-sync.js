@@ -31,6 +31,7 @@
       email: r.email || '', website: r.website || '', address: r.address || '',
       note: r.note || '', group: r.group || '', source: r.source || '',
       favorite: !!r.is_favorite, imageDriveId: r.image_drive_id || '',
+      imagePath: r.image_path || '',
       image: '', images: [],
       created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       updated: r.updated_at ? new Date(r.updated_at).getTime() : 0,
@@ -46,9 +47,40 @@
       email: c.email || null, website: c.website || null, address: c.address || null,
       note: c.note || null, group: c.group || '', source: c.source || '',
       is_favorite: !!c.favorite, image_drive_id: c.imageDriveId || null,
+      image_path: c.imagePath || null,
       created_at: new Date(c.created || Date.now()).toISOString(),
       updated_at: new Date(c.updated || c.created || Date.now()).toISOString(),
     };
+  }
+
+  /* ---- 名片影像:存 Supabase Storage(card-images),路徑 {uid}/{id}.jpg ----
+     DB 只存路徑(image_path),不存 base64;只處理「缺的」(冪等、省流量)。
+     影像 I/O 失敗一律不擋資料同步。目前同步主圖(image),雙面 images[] 後續再補。 */
+  const BUCKET = 'card-images';
+  function blobToDataUrl(blob) {
+    return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(''); r.readAsDataURL(blob); });
+  }
+  async function syncImagesUp(list) {
+    for (const c of list) {
+      if (!c.image || c.imagePath) continue;                 // 沒圖、或已上傳過 → 跳過
+      try {
+        const path = sbUserId + '/' + c.id + '.jpg';
+        const blob = await (await fetch(c.image)).blob();
+        const { error } = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+        if (!error) c.imagePath = path;
+      } catch (e) { /* 影像上傳失敗不擋資料同步 */ }
+    }
+  }
+  async function syncImagesDown(list) {
+    for (const c of list) {
+      if (!c.imagePath || c.image) continue;                 // 沒路徑、或本地已有圖 → 跳過
+      try {
+        const { data } = await sb.storage.from(BUCKET).download(c.imagePath);
+        if (!data) continue;
+        const url = await blobToDataUrl(data);
+        if (url) { c.image = url; if (!c.images || !c.images.length) c.images = [url]; }
+      } catch (e) { /* 抓圖失敗不擋 */ }
+    }
   }
 
   /* ---- 初始化:建 client、還原 session、處理 OAuth 回跳 ---- */
@@ -97,6 +129,9 @@
       // 純對帳(無 I/O):算出最終名單、要 upsert、要刪、合併後墓碑
       const out = reconcile(contacts, remote, tombstones, remoteTombs);
 
+      // 影像:本地有圖但雲端還沒存 → 上傳 Storage(讓接著的 upsert 帶上 image_path)
+      await syncImagesUp(out.merged);
+
       if (out.toUpsert.length) {
         const { error } = await sb.from('contacts').upsert(out.toUpsert.map(toDb));
         if (error) throw new Error(error.message);
@@ -109,6 +144,9 @@
         const { error } = await sb.from('tombstones').upsert(out.tombstones.map(t => ({ owner_id: sbUserId, k: t.k, ts: t.ts })));
         if (error) throw new Error(error.message);
       }
+
+      // 影像:雲端有路徑但本地沒圖(換裝置/另一台)→ 從 Storage 抓回
+      await syncImagesDown(out.merged);
 
       contacts = out.merged;
       window.CardSnapStore.setContacts(contacts);
