@@ -278,3 +278,25 @@ test('reconcile:雙方各有不同名片 → 聯集、皆 upsert、無刪除', (
   assert.equal(r.toUpsert.length, 2);
   assert.equal(r.toDelete.length, 0);
 });
+
+/* ---------- DB row ↔ contact 轉換(Web/App 共用)---------- */
+test('contactToRow / rowToContact:round-trip 保留欄位 + 多面影像路徑', () => {
+  const c = { id: 'x', name: '王', company: 'A', taxId: '12345678', phones: [{ label: '手機', value: '0912' }], favorite: true, imagePaths: ['u/x-0.jpg', 'u/x-1.jpg'], created: 1000, updated: 2000 };
+  const row = core.contactToRow(c, 'owner-1');
+  assert.equal(row.owner_id, 'owner-1');
+  assert.equal(row.tax_id, '12345678');
+  assert.equal(row.is_favorite, true);
+  assert.equal(row.image_path, 'u/x-0.jpg');
+  assert.deepEqual(row.image_paths, ['u/x-0.jpg', 'u/x-1.jpg']);
+  const back = core.rowToContact(row);
+  assert.equal(back.name, '王');
+  assert.equal(back.taxId, '12345678');
+  assert.equal(back.favorite, true);
+  assert.equal(back.phone, '0912');
+  assert.deepEqual(back.imagePaths, ['u/x-0.jpg', 'u/x-1.jpg']);
+});
+
+test('rowToContact:舊資料只有 image_path 也能回出 imagePaths', () => {
+  const back = core.rowToContact({ id: 'y', name: '李', image_path: 'u/y.jpg' });
+  assert.deepEqual(back.imagePaths, ['u/y.jpg']);
+});

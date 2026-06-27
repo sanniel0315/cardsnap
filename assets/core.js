@@ -297,7 +297,47 @@
     return { merged, toUpsert: merged, toDelete, tombstones };
   }
 
-  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing, mergeTombstones, applyTombstones, reconcile };
+  /* ---------- Supabase DB row ↔ 前端 contact 轉換(Web 與 App 共用)----------
+     影像不入 DB(走 Storage),此處只對應中繼資料 + image_path(主圖)/image_paths(多面)。 */
+  function rowToContact(r) {
+    r = r || {};
+    const phones = Array.isArray(r.phones) ? r.phones : [];
+    return {
+      id: r.id,
+      name: r.name || '', company: r.company || '', title: r.title || '',
+      phones, phone: (phones[0] && phones[0].value) || '',
+      tags: Array.isArray(r.tags) ? r.tags : [],
+      fax: r.fax || '', taxId: r.tax_id || '',
+      email: r.email || '', website: r.website || '', address: r.address || '',
+      note: r.note || '', group: r.group || '', source: r.source || '',
+      favorite: !!r.is_favorite, imageDriveId: r.image_drive_id || '',
+      imagePath: r.image_path || '',
+      imagePaths: Array.isArray(r.image_paths) ? r.image_paths : (r.image_path ? [r.image_path] : []),
+      image: '', images: [],
+      created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      updated: r.updated_at ? new Date(r.updated_at).getTime() : 0,
+    };
+  }
+  function contactToRow(c, ownerId) {
+    c = c || {};
+    const paths = Array.isArray(c.imagePaths) ? c.imagePaths : (c.imagePath ? [c.imagePath] : []);
+    return {
+      id: c.id, owner_id: ownerId,
+      name: c.name || null, company: c.company || null, title: c.title || null,
+      phones: Array.isArray(c.phones) ? c.phones : [],
+      tags: Array.isArray(c.tags) ? c.tags : [],
+      fax: c.fax || null, tax_id: c.taxId || null,
+      email: c.email || null, website: c.website || null, address: c.address || null,
+      note: c.note || null, group: c.group || '', source: c.source || '',
+      is_favorite: !!c.favorite, image_drive_id: c.imageDriveId || null,
+      image_path: paths[0] || null,
+      image_paths: paths,
+      created_at: new Date(c.created || Date.now()).toISOString(),
+      updated_at: new Date(c.updated || c.created || Date.now()).toISOString(),
+    };
+  }
+
+  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing, mergeTombstones, applyTombstones, reconcile, rowToContact, contactToRow };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CardSnapCore = api;
 })(typeof self !== 'undefined' ? self : this);

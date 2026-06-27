@@ -19,68 +19,50 @@
   function cfg() { return (typeof window !== 'undefined' && window.CARDSNAP_CONFIG) || {}; }
   function enabled() { return !!(cfg().supabaseUrl && cfg().supabaseAnonKey); }
 
-  /* ---- 形狀轉換:DB(snake_case)↔ 前端 contact ---- */
-  function fromDb(r) {
-    const phones = Array.isArray(r.phones) ? r.phones : [];
-    return {
-      id: r.id,
-      name: r.name || '', company: r.company || '', title: r.title || '',
-      phones, phone: (phones[0] && phones[0].value) || '',
-      tags: Array.isArray(r.tags) ? r.tags : [],
-      fax: r.fax || '', taxId: r.tax_id || '',
-      email: r.email || '', website: r.website || '', address: r.address || '',
-      note: r.note || '', group: r.group || '', source: r.source || '',
-      favorite: !!r.is_favorite, imageDriveId: r.image_drive_id || '',
-      imagePath: r.image_path || '',
-      image: '', images: [],
-      created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-      updated: r.updated_at ? new Date(r.updated_at).getTime() : 0,
-    };
-  }
-  function toDb(c) {
-    return {
-      id: c.id, owner_id: sbUserId,
-      name: c.name || null, company: c.company || null, title: c.title || null,
-      phones: Array.isArray(c.phones) ? c.phones : [],
-      tags: Array.isArray(c.tags) ? c.tags : [],
-      fax: c.fax || null, tax_id: c.taxId || null,
-      email: c.email || null, website: c.website || null, address: c.address || null,
-      note: c.note || null, group: c.group || '', source: c.source || '',
-      is_favorite: !!c.favorite, image_drive_id: c.imageDriveId || null,
-      image_path: c.imagePath || null,
-      created_at: new Date(c.created || Date.now()).toISOString(),
-      updated_at: new Date(c.updated || c.created || Date.now()).toISOString(),
-    };
-  }
+  /* ---- 形狀轉換:用 core.rowToContact / contactToRow(Web 與 App 共用)---- */
+  const toRow = (c) => contactToRow(c, sbUserId);
 
-  /* ---- 名片影像:存 Supabase Storage(card-images),路徑 {uid}/{id}.jpg ----
-     DB 只存路徑(image_path),不存 base64;只處理「缺的」(冪等、省流量)。
-     影像 I/O 失敗一律不擋資料同步。目前同步主圖(image),雙面 images[] 後續再補。 */
+  /* ---- 名片影像:存 Supabase Storage(card-images),路徑 {uid}/{id}-{i}.jpg ----
+     DB 只存路徑(image_paths),不存 base64;只處理「缺的」(冪等、省流量)。
+     支援雙面 images[];影像 I/O 失敗一律不擋資料同步。 */
   const BUCKET = 'card-images';
   function blobToDataUrl(blob) {
     return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(''); r.readAsDataURL(blob); });
   }
+  function localImages(c) { return (c.images && c.images.length) ? c.images : (c.image ? [c.image] : []); }
+  function remotePaths(c) { return (c.imagePaths && c.imagePaths.length) ? c.imagePaths : (c.imagePath ? [c.imagePath] : []); }
   async function syncImagesUp(list) {
     for (const c of list) {
-      if (!c.image || c.imagePath) continue;                 // 沒圖、或已上傳過 → 跳過
-      try {
-        const path = sbUserId + '/' + c.id + '.jpg';
-        const blob = await (await fetch(c.image)).blob();
-        const { error } = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-        if (!error) c.imagePath = path;
-      } catch (e) { /* 影像上傳失敗不擋資料同步 */ }
+      const imgs = localImages(c);
+      if (!imgs.length || (c.imagePaths && c.imagePaths.length >= imgs.length)) continue; // 沒圖或已上傳
+      const paths = [];
+      for (let i = 0; i < imgs.length; i++) {
+        try {
+          const path = sbUserId + '/' + c.id + '-' + i + '.jpg';
+          const blob = await (await fetch(imgs[i])).blob();
+          const { error } = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+          if (!error) paths.push(path);
+        } catch (e) { /* 單張失敗略過 */ }
+      }
+      if (paths.length) { c.imagePaths = paths; c.imagePath = paths[0]; }
     }
   }
   async function syncImagesDown(list) {
     for (const c of list) {
-      if (!c.imagePath || c.image) continue;                 // 沒路徑、或本地已有圖 → 跳過
-      try {
-        const { data } = await sb.storage.from(BUCKET).download(c.imagePath);
-        if (!data) continue;
-        const url = await blobToDataUrl(data);
-        if (url) { c.image = url; if (!c.images || !c.images.length) c.images = [url]; }
-      } catch (e) { /* 抓圖失敗不擋 */ }
+      const paths = remotePaths(c);
+      if (!paths.length || (c.images && c.images.length >= paths.length)) continue; // 沒路徑或本地已有
+      const imgs = [];
+      for (const p of paths) {
+        try { const { data } = await sb.storage.from(BUCKET).download(p); if (data) { const u = await blobToDataUrl(data); if (u) imgs.push(u); } } catch (e) {}
+      }
+      if (imgs.length) { c.images = imgs; c.image = imgs[0]; }
     }
+  }
+  // 刪名片時連帶刪 Storage 影像(避免孤兒檔)
+  async function deleteImages(remoteById, ids) {
+    const paths = [];
+    for (const id of ids) { const r = remoteById.get(id); if (r) paths.push(...remotePaths(r)); }
+    if (paths.length) { try { await sb.storage.from(BUCKET).remove(paths); } catch (e) { /* 刪圖失敗不擋 */ } }
   }
 
   /* ---- 初始化:建 client、還原 session、處理 OAuth 回跳 ---- */
@@ -123,7 +105,8 @@
       ]);
       if (cRes.error) throw new Error(cRes.error.message);
       if (tRes.error) throw new Error(tRes.error.message);
-      const remote = (cRes.data || []).map(fromDb);
+      const remote = (cRes.data || []).map(rowToContact);
+      const remoteById = new Map(remote.map(r => [r.id, r]));
       const remoteTombs = (tRes.data || []).map(t => ({ k: t.k, ts: Number(t.ts || 0) }));
 
       // 純對帳(無 I/O):算出最終名單、要 upsert、要刪、合併後墓碑
@@ -133,12 +116,13 @@
       await syncImagesUp(out.merged);
 
       if (out.toUpsert.length) {
-        const { error } = await sb.from('contacts').upsert(out.toUpsert.map(toDb));
+        const { error } = await sb.from('contacts').upsert(out.toUpsert.map(toRow));
         if (error) throw new Error(error.message);
       }
       if (out.toDelete.length) {
         const { error } = await sb.from('contacts').delete().in('id', out.toDelete);
         if (error) throw new Error(error.message);
+        await deleteImages(remoteById, out.toDelete);   // 連帶刪 Storage 影像(免孤兒)
       }
       if (out.tombstones.length) {
         const { error } = await sb.from('tombstones').upsert(out.tombstones.map(t => ({ owner_id: sbUserId, k: t.k, ts: t.ts })));
