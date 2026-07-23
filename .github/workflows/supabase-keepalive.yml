@@ -1,0 +1,32 @@
+# Supabase 保活:免費方案 7 天無活動會自動暫停,
+# 這裡每 3 天對 REST 打一筆真實查詢(讀 contacts 一列),讓 DB 保持活動。
+# URL / anon key 直接從 assets/config.js 取,不重複硬編(anon key 本就是前端公開值,防線是 RLS)。
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *'   # 每 3 天 06:00 UTC 觸發(7 天上限下留足餘裕)
+  workflow_dispatch:         # 也可手動執行
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ping Supabase REST(保持專案活動)
+        run: |
+          read URL KEY < <(node -e "global.window={};eval(require('fs').readFileSync('assets/config.js','utf8'));const c=window.CARDSNAP_CONFIG||{};console.log((c.supabaseUrl||'')+' '+(c.supabaseAnonKey||''))")
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "config.js 未設定 supabaseUrl / anonKey,略過保活。"
+            exit 0
+          fi
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+            -H "apikey: $KEY" "$URL/rest/v1/contacts?select=id&limit=1")
+          echo "Supabase REST 回應:HTTP $CODE"
+          if [ "$CODE" = "200" ]; then
+            echo "✅ 保活成功,專案維持活動。"
+          else
+            echo "⚠️ 非預期狀態碼($CODE):專案可能已暫停或設定有變,請檢查。"
+            exit 1
+          fi
