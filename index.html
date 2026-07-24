@@ -65,6 +65,12 @@ h1 .grad{background:linear-gradient(120deg,var(--teal),var(--blue));-webkit-back
 .shot .nm{font-weight:700;font-size:15px}
 .shot .co{color:var(--mut);font-size:13px}
 @media(max-width:640px){.shot .side{display:none}.shot .body{grid-template-columns:1fr}}
+a.shot{display:block;cursor:pointer;text-decoration:none;color:inherit}
+a.shot .card{transition:transform .3s ease,box-shadow .3s ease}
+a.shot:hover .card{transform:translateY(-6px);box-shadow:0 52px 92px -30px rgba(15,23,42,.42)}
+.shot-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(1);display:inline-flex;align-items:center;gap:10px;padding:14px 24px;border-radius:999px;background:rgba(13,148,136,.94);color:#fff;font-weight:800;font-size:16px;box-shadow:0 22px 44px -12px rgba(13,148,136,.7);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);z-index:2;pointer-events:none;transition:transform .3s ease,box-shadow .3s ease}
+.shot-play svg{width:18px;height:18px;fill:#fff}
+a.shot:hover .shot-play{transform:translate(-50%,-50%) scale(1.06);box-shadow:0 26px 52px -12px rgba(13,148,136,.8)}
 
 /* sections */
 section{padding:84px 0}
@@ -157,7 +163,7 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
     </div>
     <div class="note"><svg class="ic" style="width:18px;height:18px;color:#0d9488" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>用 Google 登入就好,不用再記一組新密碼</div>
 
-    <div class="shot reveal"><div class="card">
+    <a class="shot reveal" href="./demo.html" aria-label="觀看動畫示範"><div class="card">
       <div class="bar"><i></i><i></i><i></i></div>
       <div class="body">
         <div class="side">
@@ -174,7 +180,7 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
           <div class="row"><span class="av">張</span><div><div class="nm">張怡君</div><div class="co">未來行銷 · 總監</div></div></div>
         </div>
       </div>
-    </div></div>
+    </div><span class="shot-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>看動畫示範</span></a>
   </div>
 </header>
 
