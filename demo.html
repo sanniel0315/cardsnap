@@ -243,6 +243,17 @@ body{
 :root[data-theme="light"] .theme-tog .tt-opt[data-m="light"],
 :root[data-theme="dark"]  .theme-tog .tt-opt[data-m="dark"]{color:#fff}
 
+/* 錄製模式:隱藏所有 UI,只留手機動畫置中,方便螢幕錄影轉 mp4/gif */
+body.recording .masthead,
+body.recording .player,
+body.recording .caption,
+body.recording .theme-tog,
+body.recording .tweaks{display:none!important}
+body.recording .stage{padding:0;min-height:100vh;justify-content:center;gap:0}
+.rec-exit{position:fixed;top:14px;right:16px;z-index:60;font-size:12px;font-weight:700;color:var(--dim);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px;opacity:0;pointer-events:none;transition:opacity .35s;display:none}
+body.recording .rec-exit{display:block}
+body.recording .rec-exit.show{opacity:.85}
+
 @media (max-width:420px){
   .phone{width:300px;height:638px}
   .stage{padding:24px 14px}
@@ -431,8 +442,14 @@ body{
       <label>解析光點</label>
       <div class="sw on" id="swMote"></div>
     </div>
+    <div class="tw-row">
+      <label>錄製模式<small style="display:block;color:var(--dim);font-weight:500;font-size:11px">隱藏介面,方便螢幕錄影</small></label>
+      <div class="sw" id="swRecord"></div>
+    </div>
   </div>
 </div>
+
+<div class="rec-exit" id="recExit">錄製模式 · 按 R 或移動滑鼠點此離開</div>
 
 <script>
 (function(){
@@ -591,11 +608,11 @@ body{
   })();
 
   // ── 播放循環 ──
-  var t=0, playing=false, last=null;
+  var t=0, playing=false, last=null, running=false;
   var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
 
   function frame(now){
-    if(!playing){ last=null; return; }
+    if(!playing){ running=false; last=null; return; }
     if(last==null) last=now;
     var dt=(now-last)/1000; last=now;
     t += dt*opt.speed;
@@ -608,7 +625,7 @@ body{
   }
   function setPlaying(v){
     playing=v; playBtn.innerHTML = v ? ICON_PAUSE : ICON_PLAY;
-    if(v){ if(t>=DUR-0.01) t=0; last=null; requestAnimationFrame(frame); }
+    if(v){ if(t>=DUR-0.01) t=0; last=null; if(!running){ running=true; requestAnimationFrame(frame); } }
   }
   function seek(v){ t=clamp(v,0,DUR); render(t); }
 
@@ -645,6 +662,32 @@ body{
   });
   function toggle(el,key){ el.addEventListener('click',function(){ el.classList.toggle('on'); opt[key]=el.classList.contains('on'); render(t); }); }
   toggle($('swLoop'),'loop'); toggle($('swMote'),'mote');
+
+  // ── 錄製模式:隱藏 UI、只留手機動畫置中,方便螢幕錄影 ──
+  var recExit=$('recExit'), swRecord=$('swRecord'), recHintT=null, recording=false;
+  function setRecording(on){
+    recording=on;
+    document.body.classList.toggle('recording', on);
+    swRecord.classList.toggle('on', on);
+    if(on){                                   // 進錄製:確保循環播放、從頭開始
+      if(!opt.loop){ opt.loop=true; $('swLoop').classList.add('on'); }
+      t=0; setPlaying(true);
+    }
+  }
+  swRecord.addEventListener('click',function(){ setRecording(!recording); });
+  recExit.addEventListener('click',function(){ setRecording(false); });
+  // 錄製模式下滑鼠移動才短暫顯示離開鈕(不動滑鼠就不會入鏡)
+  addEventListener('mousemove',function(){
+    if(!recording) return;
+    recExit.classList.add('show');
+    clearTimeout(recHintT); recHintT=setTimeout(function(){ recExit.classList.remove('show'); }, 1800);
+  });
+  // R 鍵切換錄製模式
+  addEventListener('keydown',function(e){
+    if(e.code==='KeyR' && !e.metaKey && !e.ctrlKey){ e.preventDefault(); setRecording(!recording); }
+  });
+  // ?record=1 深連結直接進錄製模式(給乾淨錄影分頁)
+  if(/[?&]record=1\b/.test(location.search)){ setRecording(true); }
 
   // ── 深/淺色切換 ──
   function setTheme(m){
