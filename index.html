@@ -65,6 +65,12 @@ h1 .grad{background:linear-gradient(120deg,var(--teal),var(--blue));-webkit-back
 .store-badge svg{width:22px;height:22px;fill:#fff;flex:none}
 .store-badge small{display:block;font-size:10px;opacity:.72;font-weight:600;line-height:1.25}
 .store-badge b{display:block;font-size:15px;font-weight:700;line-height:1.2;letter-spacing:.01em}
+.beta-join{display:inline-flex;align-items:center;gap:9px;margin-top:18px;background:#fff;border:1.5px solid var(--line);color:var(--teal);font-weight:700;font-size:14px;padding:10px 18px;border-radius:999px;box-shadow:0 6px 16px -8px rgba(13,148,136,.4);transition:transform .15s,box-shadow .15s}
+.beta-join:hover{transform:translateY(-2px);box-shadow:0 12px 24px -10px rgba(13,148,136,.5)}
+.beta-join .bj-dot{width:8px;height:8px;border-radius:50%;background:var(--teal2);box-shadow:0 0 0 4px rgba(20,184,166,.2);animation:bjpulse 1.8s ease-in-out infinite}
+@keyframes bjpulse{0%,100%{opacity:1}50%{opacity:.35}}
+.beta-join svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.beta-note{margin-top:10px;font-size:12.5px;color:var(--mut)}
 
 /* hero mockup */
 .shot{margin:64px auto 0;max-width:920px;position:relative;z-index:1}
@@ -186,6 +192,12 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
       <span class="store-badge"><svg viewBox="0 0 24 24"><path d="M4 3.5v17l14-8.5z"/></svg><span><small>即將登陸</small><b>Google Play</b></span></span>
     </div>
 
+    <a class="beta-join" id="betaJoin" href="__PLAY_TEST_URL__" target="_blank" rel="noopener">
+      <span class="bj-dot"></span>Android 封測開放中，搶先加入
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
+    <div class="beta-note">用 Google 帳號加入即可搶先安裝 · 免費 · 可隨時退出</div>
+
     <a class="shot reveal" href="./demo.html" aria-label="觀看動畫示範"><div class="card">
       <div class="bar"><i></i><i></i><i></i></div>
       <div class="body">
@@ -256,8 +268,6 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
 <footer><div class="wrap">CardSnap · 拍照即建檔的名片整理工具 · <a href="./app.html" style="color:var(--teal);font-weight:600">進入 App</a></div></footer>
 
 <script>
-// 已登入者直接進 App
-try{ if(localStorage.getItem('cardsnap.authed')) location.replace('./app.html'); }catch(e){}
 // nav 捲動樣式
 var nav=document.getElementById('nav');
 addEventListener('scroll',function(){ nav.classList.toggle('scrolled', scrollY>10); });
