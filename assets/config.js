@@ -1,5 +1,7 @@
 /* CardSnap 設定 — Google OAuth Client ID(啟用雲端同步)
-   專案 CardSnap · Web 用戶端;已授權來源:cardsnap-app.netlify.app、sanniel0315.github.io */
+   專案 CardSnap · Web 用戶端;授權來源需含正式站:name-car-box.com、cardsnap-app.netlify.app、sanniel0315.github.io
+   ⚠️ 新增網域(如 name-car-box.com)後,務必到 Google Cloud Console → 憑證 → 此 OAuth 用戶端
+      的「授權的 JavaScript 來源」加入,否則該網域雲端同步會回 400（origin not allowed）。 */
 window.CARDSNAP_CONFIG = {
   googleClientId: '813762176882-1fqksh94p9560rrmimntdpb56si0vlvp.apps.googleusercontent.com',
   // Supabase 後端(階段一)。留空則「CardSnap 雲端(Supabase)」模式停用,不影響現有 Drive 同步。
