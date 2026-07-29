@@ -52,8 +52,12 @@ function syncPhones(c) {
 }
 function loadSettings() {
   const def = { sortBy: 'recent', listMain: 'name', ocrLang: 'chi_tra+eng', fontSize: 'md', pinHash: '', cloudOcr: true, ocrEndpoint: 'https://ocr.name-car-box.com', drivePhotos: true, forceEndpoint: false, storageMode: 'supabase' };
-  try { return Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
-  catch { return def; }
+  let s;
+  try { s = Object.assign(def, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
+  catch { s = def; }
+  // 已停用的舊「cloud」(共用 owner token,單點故障)→ 自動搬到 Supabase
+  if (s.storageMode === 'cloud') s.storageMode = 'supabase';
+  return s;
 }
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 function loadTombstones() { return window.CardSnapStore.getTombstones(); }
@@ -1434,7 +1438,7 @@ function openSettings() {
   $('#set_endpoint').value = settings.ocrEndpoint || 'https://ocr.name-car-box.com'; $('#set_endpoint').readOnly = true;
   $('#set_drivephotos').checked = settings.drivePhotos !== false;
   $('#set_force').checked = !!settings.forceEndpoint;
-  if ($('#set_storage')) $('#set_storage').value = settings.storageMode || 'cloud';
+  if ($('#set_storage')) $('#set_storage').value = settings.storageMode || 'supabase';
   updateStorage();
   openModal('#settingsModal');
 }
