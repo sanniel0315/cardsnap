@@ -1,11 +1,12 @@
 # Supabase 保活:免費方案 7 天無活動會自動暫停,
-# 這裡每 3 天對 REST 打一筆真實查詢(讀 contacts 一列),讓 DB 保持活動。
+# 這裡每 2 天對 REST 打一筆真實 count 查詢(觸發 DB 讀取),讓 DB 保持活動。
+# 每 2 天是留冗餘:GitHub 排程偶爾會被延遲/丟棄,即使漏跑一兩次也不會超過 7 天。
 # URL / anon key 直接從 assets/config.js 取,不重複硬編(anon key 本就是前端公開值,防線是 RLS)。
 name: Supabase Keepalive
 
 on:
   schedule:
-    - cron: '0 6 */3 * *'   # 每 3 天 06:00 UTC 觸發(7 天上限下留足餘裕)
+    - cron: '0 6 */2 * *'   # 每 2 天 06:00 UTC 觸發(7 天上限下留足冗餘,防排程被丟棄)
   workflow_dispatch:         # 也可手動執行
 
 jobs:
@@ -21,10 +22,12 @@ jobs:
             echo "config.js 未設定 supabaseUrl / anonKey,略過保活。"
             exit 0
           fi
+          # count 查詢會實際掃描資料表 → 明確的 DB 讀取(Supabase 認定為活動)
           CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
-            -H "apikey: $KEY" "$URL/rest/v1/contacts?select=id&limit=1")
+            -H "apikey: $KEY" -H "Prefer: count=exact" -H "Range: 0-0" \
+            "$URL/rest/v1/contacts?select=id")
           echo "Supabase REST 回應:HTTP $CODE"
-          if [ "$CODE" = "200" ]; then
+          if [ "$CODE" = "200" ] || [ "$CODE" = "206" ]; then
             echo "✅ 保活成功,專案維持活動。"
           else
             echo "⚠️ 非預期狀態碼($CODE):專案可能已暫停或設定有變,請檢查。"
