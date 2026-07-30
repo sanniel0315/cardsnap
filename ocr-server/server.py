@@ -15,7 +15,8 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:7b")
+MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:32b")   # 預設 32b(小字/密集名片較準);未安裝自動退回 7b
+FALLBACK_MODEL = "qwen2.5vl:7b"
 
 app = FastAPI(title="CardSnap Local OCR")
 app.add_middleware(
@@ -34,19 +35,7 @@ PROMPT = (
     "email 務必仔細辨識(找含 @ 的字串,例如 name@example.com、xxx@msa.hinet.net;若有多個,取第一個放 email、其餘放 note)。raw_text 請務必逐字含所有 email、電話、地址。"
 )
 
-def call_ollama(b64: str) -> dict:
-    # 用 /api/chat(對視覺模型較穩);不開 format=json(部分版本會 500),改用解析
-    body = {
-        "model": MODEL,
-        "messages": [{"role": "user", "content": PROMPT, "images": [b64]}],
-        "stream": False,
-        "options": {"temperature": 0},
-    }
-    r = requests.post(f"{OLLAMA}/api/chat", json=body, timeout=180)
-    if r.status_code != 200:
-        raise RuntimeError(f"ollama /api/chat {r.status_code}: {r.text[:400]}")
-    data = r.json()
-    resp = ((data.get("message") or {}).get("content") or "").strip()
+def _parse_json(resp: str) -> dict:
     try:
         return json.loads(resp)
     except Exception:
@@ -54,6 +43,27 @@ def call_ollama(b64: str) -> dict:
         if m:
             return json.loads(m.group(0))
         raise RuntimeError("模型輸出非 JSON:" + resp[:300])
+
+def call_ollama(b64: str) -> dict:
+    # 用 /api/chat(對視覺模型較穩);預設 MODEL,未安裝(400/404)自動退回 FALLBACK_MODEL
+    models = [MODEL] + ([FALLBACK_MODEL] if MODEL != FALLBACK_MODEL else [])
+    last = ""
+    for model in models:
+        body = {
+            "model": model,
+            "messages": [{"role": "user", "content": PROMPT, "images": [b64]}],
+            "stream": False,
+            "options": {"temperature": 0},
+        }
+        r = requests.post(f"{OLLAMA}/api/chat", json=body, timeout=300)   # 32b 較慢,給到 300s
+        if r.status_code == 200:
+            resp = ((r.json().get("message") or {}).get("content") or "").strip()
+            return _parse_json(resp)
+        last = f"{model} {r.status_code}: {r.text[:200]}"
+        if r.status_code in (400, 404) and model != models[-1]:
+            continue   # 模型沒安裝 → 試下一個
+        raise RuntimeError("ollama /api/chat " + last)
+    raise RuntimeError("ollama 全部失敗:" + last)
 
 def _s(v):
     # 把任何值攤平成乾淨字串(model 有時把 address 等回成 list/dict)
