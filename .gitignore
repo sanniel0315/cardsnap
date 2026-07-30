@@ -1,6 +1,7 @@
 dist/
 node_modules/
 ocr-server/.venv/
+__pycache__/
 CardSnap_匯入_*.json
 *.local
 .DS_Store
