@@ -905,7 +905,34 @@ function exitSelect() {
   $('#selectBar').classList.add('hidden');
   render();
 }
-function updateSelectBar() { $('#selCount').textContent = `已選 ${selected.size}`; }
+function updateSelectBar() {
+  $('#selCount').textContent = `已選 ${selected.size}`;
+  const m = $('#selMerge'); if (m) m.classList.toggle('hidden', selected.size < 2);
+}
+// 手動合併選取的名片成 1 張(正反面分開掃時用):欄位互補、電話去重、正反面圖都保留
+function mergeSelected() {
+  const ids = [...selected];
+  const cs = ids.map(id => contacts.find(c => c.id === id)).filter(Boolean);
+  if (cs.length < 2) { toast('請選 2 張以上再合併'); return; }
+  if (!confirm(`把選取的 ${cs.length} 張名片合併成 1 張?\n(欄位互補、電話去重、正反面照片都保留)`)) return;
+  cs.sort((a, b) => (a.created || 0) - (b.created || 0));   // 以最早建立的為主卡
+  const base = cs[0], keepId = base.id;
+  for (let i = 1; i < cs.length; i++) {
+    const ex = cs[i];
+    fillMissing(base, ex);                                   // 文字欄位互補 + 電話去重合併(共用 core)
+    const bImgs = (base.images && base.images.length) ? base.images : (base.image ? [base.image] : []);
+    const eImgs = (ex.images && ex.images.length) ? ex.images : (ex.image ? [ex.image] : []);
+    const imgs = [...bImgs, ...eImgs].filter((v, idx, arr) => v && arr.indexOf(v) === idx);
+    if (imgs.length) { base.images = imgs; base.image = imgs[0]; }   // 正反面照片都留
+    base.tags = [...new Set([...(base.tags || []), ...(ex.tags || [])])];
+    if (!base.group && ex.group) base.group = ex.group;
+  }
+  migrate(base);
+  base.updated = Date.now();
+  for (let i = 1; i < cs.length; i++) addTombstone(cs[i]);   // 其餘標記刪除
+  contacts = contacts.filter(c => c.id === keepId || !ids.includes(c.id));
+  saveTombstones(); save(); exitSelect(); toast('已合併成 1 張');
+}
 function selectAll() { filtered().forEach(c => selected.add(c.id)); render(); updateSelectBar(); }
 function batchDelete() {
   if (!selected.size) { toast('尚未選取'); return; }
@@ -1629,6 +1656,7 @@ function bind() {
   if ($('#btnDedup')) $('#btnDedup').onclick = mergeDuplicates;
   $('#selAll').onclick = selectAll;
   $('#selTag').onclick = batchTag;
+  $('#selMerge').onclick = mergeSelected;
   $('#selExport').onclick = batchExport;
   $('#selDelete').onclick = batchDelete;
   $('#selDone').onclick = exitSelect;
