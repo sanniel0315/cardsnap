@@ -22,7 +22,7 @@ echo [4/5] 寫入設定檔 %USERPROFILE%\.cloudflared\config.yml
   echo tunnel: %TUNNEL%
   echo ingress:
   echo   - hostname: %HOSTN%
-  echo     service: http://localhost:%PORT%
+  echo     service: http://127.0.0.1:%PORT%
   echo   - service: http_status:404
 )
 
