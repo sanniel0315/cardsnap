@@ -227,13 +227,27 @@
   function dropJunk(arr) { return (Array.isArray(arr) ? arr : []).filter(c => !isJunkContact(c)); }
 
   // 舊資料 → 新欄位(多電話 phones[]、雙面 images[]、分組 group)
+  // 把任何值攤平成乾淨字串(OCR 可能回傳陣列/物件,直接 join 成可讀字串)
+  function asStr(v) {
+    if (v == null) return '';
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v)) return v.map(asStr).filter(Boolean).join(' ');
+    if (typeof v === 'object') return Object.values(v).map(asStr).filter(Boolean).join(' ');
+    return String(v);
+  }
   function migrate(c) {
     if (!Array.isArray(c.images)) c.images = c.image ? [c.image] : [];
     if (c.images.length && !c.image) c.image = c.images[0];
-    if (!Array.isArray(c.phones)) c.phones = c.phone ? [{ label: '手機', value: c.phone }] : [];
-    if (c.phones.length && !c.phone) c.phone = c.phones[0].value;
-    if (typeof c.group !== 'string') c.group = '';
-    if (typeof c.source !== 'string') c.source = '';
+    // 電話正規化成 [{label,value}] 且值一律為字串
+    const ph = Array.isArray(c.phones) ? c.phones : (c.phone ? [{ label: '手機', value: c.phone }] : []);
+    c.phones = ph.map(p => (typeof p === 'string')
+      ? { label: '電話', value: asStr(p) }
+      : { label: asStr(p && p.label) || '電話', value: asStr(p && (p.value != null ? p.value : p.number)) })
+      .filter(p => p.value);
+    c.phone = c.phones.length ? c.phones[0].value : asStr(c.phone);
+    // 所有文字欄位強制轉乾淨字串(防 OCR 回陣列/物件 → 顯示 [{...}] 或詳情頁崩潰黑屏)
+    for (const k of ['name', 'company', 'title', 'email', 'website', 'address', 'fax', 'taxId', 'note', 'group', 'source']) c[k] = asStr(c[k]);
+    c.tags = Array.isArray(c.tags) ? c.tags.map(asStr).filter(Boolean) : (c.tags ? [asStr(c.tags)].filter(Boolean) : []);
     return c;
   }
 
@@ -304,12 +318,12 @@
     const phones = Array.isArray(r.phones) ? r.phones : [];
     return {
       id: r.id,
-      name: r.name || '', company: r.company || '', title: r.title || '',
+      name: asStr(r.name), company: asStr(r.company), title: asStr(r.title),
       phones, phone: (phones[0] && phones[0].value) || '',
-      tags: Array.isArray(r.tags) ? r.tags : [],
-      fax: r.fax || '', taxId: r.tax_id || '',
-      email: r.email || '', website: r.website || '', address: r.address || '',
-      note: r.note || '', group: r.group || '', source: r.source || '',
+      tags: Array.isArray(r.tags) ? r.tags.map(asStr).filter(Boolean) : [],
+      fax: asStr(r.fax), taxId: asStr(r.tax_id),
+      email: asStr(r.email), website: asStr(r.website), address: asStr(r.address),
+      note: asStr(r.note), group: asStr(r.group), source: asStr(r.source),
       favorite: !!r.is_favorite, imageDriveId: r.image_drive_id || '',
       imagePath: r.image_path || '',
       imagePaths: Array.isArray(r.image_paths) ? r.image_paths : (r.image_path ? [r.image_path] : []),

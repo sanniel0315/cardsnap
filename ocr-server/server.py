@@ -54,6 +54,18 @@ def call_ollama(b64: str) -> dict:
             return json.loads(m.group(0))
         raise RuntimeError("模型輸出非 JSON:" + resp[:300])
 
+def _s(v):
+    # 把任何值攤平成乾淨字串(model 有時把 address 等回成 list/dict)
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, (list, tuple)):
+        return " ".join(_s(x) for x in v if x)
+    if isinstance(v, dict):
+        return " ".join(_s(x) for x in v.values() if x)
+    return str(v)
+
 def normalize(d: dict) -> dict:
     d = d or {}
     fax = d.get("fax", "") or ""
@@ -84,16 +96,16 @@ def normalize(d: dict) -> dict:
         note = "、".join(str(x) for x in note if x)
 
     fields = {
-        "name": d.get("name", "") or "",
-        "company": d.get("company", "") or "",
-        "title": d.get("title", "") or "",
+        "name": _s(d.get("name")),
+        "company": _s(d.get("company")),
+        "title": _s(d.get("title")),
         "phones": phones,
-        "email": d.get("email", "") or "",
-        "website": d.get("website", "") or "",
-        "address": d.get("address", "") or "",
-        "fax": fax,
-        "taxId": d.get("taxId", d.get("tax_id", "")) or "",
-        "note": note,
+        "email": _s(d.get("email")),
+        "website": _s(d.get("website")),
+        "address": _s(d.get("address")),
+        "fax": _s(fax),
+        "taxId": _s(d.get("taxId", d.get("tax_id", ""))),
+        "note": _s(note),
     }
     text = d.get("raw_text") or "\n".join(
         v for v in [fields["name"], fields["company"], fields["title"],
