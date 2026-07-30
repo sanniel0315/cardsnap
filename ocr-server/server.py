@@ -31,6 +31,7 @@ PROMPT = (
     '"fax": 傳真號碼, "taxId": 統一編號(8碼數字), "note": 其他備註, '
     '"raw_text": 名片上所有文字原樣 }\n'
     "找不到的欄位留空字串或空陣列。手機=09或行動電話;市話=含區碼室內電話;傳真號碼只放到 fax 欄不要放進 phones。note 請用單一字串(多項用、分隔),不要用陣列。"
+    "email 務必仔細辨識(找含 @ 的字串,例如 name@example.com、xxx@msa.hinet.net;若有多個,取第一個放 email、其餘放 note)。raw_text 請務必逐字含所有 email、電話、地址。"
 )
 
 def call_ollama(b64: str) -> dict:
@@ -95,12 +96,20 @@ def normalize(d: dict) -> dict:
     if isinstance(note, list):
         note = "、".join(str(x) for x in note if x)
 
+    # email 後援:模型漏抓時,從整張原文(raw_text)用正則撈第一個 email
+    raw = _s(d.get("raw_text"))
+    email = _s(d.get("email"))
+    if not email and raw:
+        m = re.search(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", raw)
+        if m:
+            email = m.group(0)
+
     fields = {
         "name": _s(d.get("name")),
         "company": _s(d.get("company")),
         "title": _s(d.get("title")),
         "phones": phones,
-        "email": _s(d.get("email")),
+        "email": email,
         "website": _s(d.get("website")),
         "address": _s(d.get("address")),
         "fax": _s(fax),
