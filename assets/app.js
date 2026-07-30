@@ -642,9 +642,56 @@ function render() {
   else renderCards(list, data);
 }
 
+let _openSwipe = null;   // 目前開著的左滑列(同時只允許一列)
+function bindContactRow(row) {
+  const id = row.dataset.id;
+  const card = row.querySelector('.contact');
+  const del = row.querySelector('.swipe-del');
+  const OPEN = 92, THRESH = 46;
+  let sx = 0, sy = 0, dx = 0, dragging = false, decided = false, horiz = false, opened = false, moved = false;
+  function setX(x, anim) { card.style.transition = anim ? 'transform .22s cubic-bezier(.4,0,.2,1)' : 'none'; card.style.transform = x ? `translateX(${x}px)` : ''; }
+  function open() { if (_openSwipe && _openSwipe !== close) _openSwipe(); opened = true; _openSwipe = close; setX(-OPEN, true); }
+  function close() { opened = false; if (_openSwipe === close) _openSwipe = null; setX(0, true); }
+  row._closeSwipe = close;
+  card.addEventListener('pointerdown', e => {
+    if (selectMode) return;
+    dragging = true; decided = false; horiz = false; moved = false; sx = e.clientX; sy = e.clientY;
+    card.style.animation = 'none';                         // 停掉進場動畫的 fill,才能自由位移
+    try { card.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  card.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const mx = e.clientX - sx, my = e.clientY - sy;
+    if (!decided) {
+      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+      decided = true; horiz = Math.abs(mx) > Math.abs(my);
+      if (!horiz) { dragging = false; return; }            // 垂直 → 交回原生捲動
+    }
+    moved = true; e.preventDefault();
+    const base = opened ? -OPEN : 0;
+    dx = Math.max(-OPEN - 24, Math.min(0, base + mx));      // 只能往左,微阻尼
+    setX(dx, false);
+  });
+  function endDrag() { if (!dragging) return; dragging = false; if (!horiz) return; if (dx <= -THRESH) open(); else close(); }
+  card.addEventListener('pointerup', endDrag);
+  card.addEventListener('pointercancel', () => { dragging = false; close(); });
+  card.addEventListener('click', e => {
+    if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }   // 剛剛是滑動,不當點擊
+    if (opened) { close(); return; }
+    if (selectMode) toggleSelect(id); else openDetail(id);
+  });
+  del.addEventListener('click', e => {
+    e.stopPropagation();
+    const c = contacts.find(x => x.id === id);
+    if (c && confirm('確定刪除這張名片?')) { addTombstone(c); contacts = contacts.filter(x => x.id !== id); saveTombstones(); save(); render(); toast('已刪除'); }
+    else { close(); }
+  });
+}
 function renderCards(list, data) {
   list.classList.remove('as-table');
+  _openSwipe = null;
   list.innerHTML = data.map(c => `
+    <div class="swipe-row" data-id="${c.id}"><button class="swipe-del" aria-label="刪除">${ICON_TRASH}<span>刪除</span></button>
     <div class="contact ${selected.has(c.id) ? 'selected' : ''}" data-id="${c.id}">
       <div class="sel-box">${CHECK_SVG}</div>
       ${c.image ? `<img class="avatar avatar-img" src="${c.image}" alt="">` : `<div class="avatar">${esc(initials(c.name))}</div>`}
@@ -657,10 +704,8 @@ function renderCards(list, data) {
         ${c.phone ? `<a href="tel:${esc(c.phone)}" title="撥打" onclick="event.stopPropagation()"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3l1.3 3.2-1.7 1.2a9 9 0 0 0 3.8 3.8l1.2-1.7L16.5 14v3a1 1 0 0 1-1.1 1A12.5 12.5 0 0 1 4 6.6 1 1 0 0 1 5 3.5"/></svg></a>` : ''}
         ${c.email ? `<a href="mailto:${esc(c.email)}" title="寄信" onclick="event.stopPropagation()"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="2"/><path d="m3 6 7 5 7-5"/></svg></a>` : ''}
       </div>
-    </div>`).join('');
-  $$('#list .contact').forEach(el => el.onclick = () => {
-    if (selectMode) toggleSelect(el.dataset.id); else openDetail(el.dataset.id);
-  });
+    </div></div>`).join('');
+  $$('#list .swipe-row').forEach(row => bindContactRow(row));
 }
 
 /* ---------- CamCard 風三欄桌面版 ---------- */

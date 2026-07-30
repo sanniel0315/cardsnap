@@ -83,6 +83,11 @@ svg{display:block}
   background:var(--surface-2);border:1px solid var(--line);color:var(--muted);transition:.16s}
 .c-quick a svg{width:17px;height:17px}
 .c-quick a:hover{color:var(--accent);border-color:var(--accent-ring)}
+/* 左滑刪除 */
+.swipe-row{position:relative}
+.swipe-row>.swipe-del{position:absolute;top:0;right:0;bottom:0;width:92px;border:none;cursor:pointer;background:var(--danger);color:#fff;font-weight:700;font-size:13px;z-index:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:0 15px 15px 0}
+.swipe-row>.swipe-del svg{width:19px;height:19px;stroke:#fff}
+.swipe-row>.contact{position:relative;z-index:1;touch-action:pan-y}
 
 /* ---- empty ---- */
 .empty{text-align:center;padding:76px 30px;color:var(--muted)}
