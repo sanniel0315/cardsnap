@@ -36,6 +36,19 @@ https://abc-xyz.trycloudflare.com/ocr
 (結尾要有 /ocr)儲存。完成後拍名片會顯示「高精準辨識中(本機 GPU)」。
 伺服器/通道沒開時,App 自動退回雲端或本機 Tesseract,不會壞。
 
+## 五、看門狗(避免通道半夜自己斷掉)
+用工作排程長期跑伺服器與具名 tunnel 時,cloudflared 中途死掉不會自動復活(排程若只設「登入時」觸發,要等下次登入才會起來,對外會一直回 **530**)。
+
+`watchdog.ps1` 解決這件事:每次執行會檢查本機 `http://127.0.0.1:8765/` 與對外端點,任一掛掉就重啟對應的工作排程。連兩次失敗才動作,並且會先確認外網是否正常,ISP 斷線時不會誤重啟。
+
+註冊成每 5 分鐘跑一次(PowerShell,一般權限即可):
+```powershell
+$xmlArgs = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<repo>\ocr-server\watchdog.ps1"'
+# 需 TimeTrigger + Repetition PT5M(不設 Duration = 無限重複)、MultipleInstancesPolicy=IgnoreNew
+```
+排程名稱預設為「CardSnap Watchdog」;它操作的排程名稱寫在腳本開頭的 `$TaskServer` / `$TaskTunnel`,與你實際的排程名稱要一致。
+日誌:`%LOCALAPPDATA%\cardsnap\watchdog.log`(只記事件,正常時不寫)。
+
 ## 備註
 - trycloudflare.com 免費網址每次重開會變,變了就更新設定欄位;要固定網址可用具名 tunnel。
 - 換模型/連別台 Ollama:設環境變數 OCR_MODEL、OLLAMA_URL 再啟動。
