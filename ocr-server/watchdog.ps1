@@ -90,8 +90,10 @@ if (-not (Test-Internet)) {
 }
 
 Write-Log "對外端點無回應(本機正常、外網正常)-> 重啟排程「$TaskTunnel」"
+# 只用 schtasks /end(它只終結該排程自己的 process tree)。
+# 絕對不要用 Stop-Process -Name cloudflared:這台機器同時跑著另一條無關的 tunnel
+# (stockdesk-home → api.stockdesk.dev),照名字砍會把它一起殺掉。
 schtasks /end /tn "$TaskTunnel" 2>$null | Out-Null
-Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 3
 schtasks /run /tn "$TaskTunnel" | Out-Null
 
