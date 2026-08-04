@@ -396,15 +396,13 @@ body.select-mode .fab{display:none}
 .btn.sm{padding:8px 12px;font-size:13px}
 .ss-btns .btn{flex:1}
 
-/* 字體大小縮放 */
-body.fs-sm{font-size:14px}
-body.fs-lg{font-size:17px}
-body.fs-lg .c-name{font-size:17.5px}
-body.fs-lg .c-sub{font-size:15px}
-body.fs-lg .dc-sum-name{font-size:21px}
-body.fs-lg .dc-val,body.fs-lg .dc-note-body{font-size:16.5px}
-body.fs-sm .c-name{font-size:15px}
-body.fs-sm .c-sub{font-size:12.5px}
+/* 介面放大三段控制(zoom 於 JS 套用) */
+.set-seg-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.set-seg-row>span{display:flex;flex-direction:column}
+.set-seg-row>span small{color:var(--dim);font-weight:400;font-size:12px;margin-top:2px}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px;flex-shrink:0}
+.seg-item{border:none;background:none;color:var(--muted);font-size:14px;font-weight:700;padding:7px 15px;border-radius:8px;cursor:pointer;transition:.15s}
+.seg-item.active{background:var(--accent);color:#fff}
 
 /* 列表分組徽章 */
 .c-group{font-size:11px;background:#eef2f5;color:var(--muted);border:1px solid var(--line);

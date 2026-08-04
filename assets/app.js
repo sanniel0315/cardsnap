@@ -1466,7 +1466,10 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;
    設定
    ============================================================ */
 function pinHash(p) { let h = 5381; const str = String(p || ''); for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) + str.charCodeAt(i); h |= 0; } return 'h' + (h >>> 0).toString(36); }
-function applyFontSize() { document.body.classList.remove('fs-sm', 'fs-md', 'fs-lg'); document.body.classList.add('fs-' + (settings.fontSize || 'md')); }
+/* 介面放大三段:標準/大/特大 → 用 zoom 等比例放大整個介面(舊值 sm 視為標準) */
+const FONT_ZOOM = { sm: 1, md: 1, lg: 1.15, xl: 1.3 };
+function applyFontSize() { const z = FONT_ZOOM[settings.fontSize] || 1; document.body.style.zoom = z === 1 ? '' : String(z); }
+function setFontSeg(v) { const key = (v === 'lg' || v === 'xl') ? v : 'md'; $$('#set_font .seg-item').forEach(b => b.classList.toggle('active', b.dataset.scale === key)); }
 function humanSize(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1024).toFixed(0) + ' KB'; }
 function storageBytes() {
   let n = 0;
@@ -1504,7 +1507,7 @@ function openSettings() {
   $('#set_sort').value = settings.sortBy;
   $('#set_listmain').value = settings.listMain;
   $('#set_ocr').value = settings.ocrLang;
-  $('#set_font').value = settings.fontSize || 'md';
+  setFontSeg(settings.fontSize || 'md');
   $('#set_lock').checked = !!settings.pinHash;
   $('#set_cloud').checked = settings.cloudOcr !== false;
   $('#set_endpoint').value = settings.ocrEndpoint || 'https://ocr.name-car-box.com'; $('#set_endpoint').readOnly = true;
@@ -1518,7 +1521,6 @@ function applySettings() {
   settings.sortBy = $('#set_sort').value;
   settings.listMain = $('#set_listmain').value;
   settings.ocrLang = $('#set_ocr').value;
-  settings.fontSize = $('#set_font').value;
   settings.cloudOcr = $('#set_cloud').checked;
   settings.ocrEndpoint = 'https://ocr.name-car-box.com';   // 系統鎖定,不開放修改
   settings.drivePhotos = $('#set_drivephotos').checked;
@@ -1602,6 +1604,8 @@ function bind() {
   // 設定
   $('#btnSettings').onclick = openSettings;
   $('#setSave').onclick = applySettings;
+  // 介面放大三段:點了立即套用並儲存(不必按儲存)
+  $$('#set_font .seg-item').forEach(b => b.onclick = () => { settings.fontSize = b.dataset.scale; saveSettings(); applyFontSize(); setFontSeg(settings.fontSize); });
   if ($('#endpointTest')) $('#endpointTest').onclick = testEndpoint;
   $('#set_lock').onchange = e => {
     if (e.target.checked) {
