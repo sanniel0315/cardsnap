@@ -49,6 +49,45 @@ $xmlArgs = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<repo>
 排程名稱預設為「CardSnap Watchdog」;它操作的排程名稱寫在腳本開頭的 `$TaskServer` / `$TaskTunnel`,與你實際的排程名稱要一致。
 日誌:`%LOCALAPPDATA%\cardsnap\watchdog.log`(只記事件,正常時不寫)。
 
+## 六、同一台機器跑多條 tunnel 時的隔離(重要)
+
+具名 tunnel 上正式環境後,很容易演變成「一台機器上跑好幾條互不相干的通道」。
+預設裝法會讓它們共用資源,於是動一條就傷到另一條。**三個共用點都要拆開**:
+
+| 共用點 | 為什麼會互相影響 | 做法 |
+|---|---|---|
+| 同一顆 `cloudflared.exe`(PATH 上那顆) | 執行中的 exe 被鎖住,**升級必須同時停掉所有通道** | 每條通道自己一份 exe,各放各的目錄 |
+| 預設設定檔 `%USERPROFILE%\.cloudflared\config.yml` | 沒帶 `--config` 的通道都會讀到它 —— 也就是讀到別條的設定 | 每條 `--config` 指向自己的檔;預設檔改名停用 |
+| autoupdate(預設開啟) | 自動更新會**就地換掉正在執行的 exe 再自我重啟**,連帶換掉別條在用的那顆 | 每份 config 都寫 `no-autoupdate: true` |
+
+本專案的實際配置(這台機器另有一條無關的通道):
+
+```
+C:\cloudflared\cardsnap\cloudflared.exe    ← 專屬 binary,升級只動這顆
+C:\cloudflared\cardsnap\config.yml         ← 專屬設定(tunnel / credentials-file / no-autoupdate / ingress)
+```
+
+工作排程「CardSnap Tunnel」的動作:
+
+```
+cmd.exe /c C:\cloudflared\cardsnap\cloudflared.exe --config C:\cloudflared\cardsnap\config.yml tunnel run cardsnap-ocr
+```
+
+⚠ **路徑不要加引號。** 工作排程是把整串引數原字串交給 `cmd.exe`,而 cmd 在字串以引號開頭時
+會砍掉頭尾各一個引號,把命令切壞(症狀:排程秒退、`LastTaskResult=1`、完全沒有 cloudflared 程序)。
+上面兩個路徑刻意選在沒有空白的位置,就是為了不需要引號。
+
+升級只動這條(另一條完全無感):
+
+```powershell
+Invoke-WebRequest "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "$env:TEMP\cf-new.exe"
+schtasks /end /tn "CardSnap Tunnel"
+Copy-Item "$env:TEMP\cf-new.exe" "C:\cloudflared\cardsnap\cloudflared.exe" -Force
+schtasks /run /tn "CardSnap Tunnel"
+```
+
+因為裝在使用者可寫的目錄,這個流程**不需要系統管理員權限**。
+
 ## 備註
 - trycloudflare.com 免費網址每次重開會變,變了就更新設定欄位;要固定網址可用具名 tunnel。
 - 換模型/連別台 Ollama:設環境變數 OCR_MODEL、OLLAMA_URL 再啟動。
