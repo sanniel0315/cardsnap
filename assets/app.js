@@ -140,7 +140,7 @@ async function remoteOCR(source) {
   const custom = settings.ocrEndpoint && settings.ocrEndpoint.trim();
   const url = custom ? normEndpoint(custom) : CLOUD_OCR_URL;
   const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 35000);
+  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 60000);
   try {
     const r = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

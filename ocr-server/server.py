@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:32b")   # 預設 32b(小字/密集名片較準);未安裝自動退回 7b
+MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:7b")    # 預設 7b(快,能在 Cloudflare 100s + App 逾時內回);32b 太慢會 524,想用設環境變數 OCR_MODEL 覆寫
 FALLBACK_MODEL = "qwen2.5vl:7b"
 
 app = FastAPI(title="CardSnap Local OCR")
@@ -53,6 +53,7 @@ def call_ollama(b64: str) -> dict:
             "model": model,
             "messages": [{"role": "user", "content": PROMPT, "images": [b64]}],
             "stream": False,
+            "keep_alive": "30m",                 # 模型常駐 VRAM,避免下一張又要冷載
             "options": {"temperature": 0},
         }
         r = requests.post(f"{OLLAMA}/api/chat", json=body, timeout=300)   # 32b 較慢,給到 300s
