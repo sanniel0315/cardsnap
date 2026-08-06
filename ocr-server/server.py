@@ -7,7 +7,7 @@ CardSnap 本機 GPU OCR 伺服器
 啟動:  run.bat   (或  python -m uvicorn server:app --host 0.0.0.0 --port 8000)
 需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:7b
 """
-import os, json, base64, re, traceback
+import os, json, base64, re, traceback, threading
 import requests
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,13 +15,25 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:7b")    # 預設 7b(快,能在 Cloudflare 100s + App 逾時內回);32b 太慢會 524,想用設環境變數 OCR_MODEL 覆寫
+MODEL  = os.environ.get("OCR_MODEL", "qwen2.5vl:32b")   # 預設 32b(小字/密集名片較準,5090 熱機後夠快);靠開機預載+keep_alive 避免冷載破 Cloudflare 100s;要換設環境變數 OCR_MODEL
 FALLBACK_MODEL = "qwen2.5vl:7b"
 
 app = FastAPI(title="CardSnap Local OCR")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
+
+def _warmup():
+    # 開機就把模型載進 VRAM(空 prompt = 只載入不推論),避免第一張使用者請求冷載破 Cloudflare 100s
+    try:
+        requests.post(f"{OLLAMA}/api/generate",
+                      json={"model": MODEL, "keep_alive": "30m"}, timeout=600)
+    except Exception:
+        pass
+
+@app.on_event("startup")
+def _on_startup():
+    threading.Thread(target=_warmup, daemon=True).start()
 
 PROMPT = (
     "你是名片資訊擷取引擎。請辨識這張名片影像,輸出「繁體中文」的 JSON,只輸出 JSON,不要說明。\n"
