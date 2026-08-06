@@ -14,6 +14,11 @@ $LocalUrl  = 'http://127.0.0.1:8765/'
 $PublicUrl = 'https://ocr.name-car-box.com/'
 $TaskServer = 'CardSnap OCR Server'
 $TaskTunnel = 'CardSnap Tunnel'
+# 通道身分:重啟通道時用來精準比對「本通道」的孤兒 cloudflared。
+# 這台同時跑著鄰居 stockdesk-home,NeighborGuard 是它的 token/UUID 前綴,永遠不碰。
+$TunnelName    = 'cardsnap-ocr'   # 本通道名(cloudflared tunnel run 命令列會帶)
+$TunnelId      = 'c3de357c'       # 本通道 UUID 前綴(改用 config/credentials 執行時命令列帶的是 UUID)
+$NeighborGuard = '0024ebee'       # 鄰居 stockdesk 通道的 token/UUID 前綴,絕不誤殺
 
 $LogDir  = Join-Path $env:LOCALAPPDATA 'cardsnap'
 $LogFile = Join-Path $LogDir 'watchdog.log'
@@ -43,6 +48,24 @@ function Test-EndpointTwice([string]$url) {
     if (Test-Endpoint $url) { return $true }
     Start-Sleep -Seconds 10
     return (Test-Endpoint $url)
+}
+
+# 清掉孤兒化的「本通道」cloudflared。
+# schtasks /end 只殺 powershell launcher,底下 cloudflared 會孤兒化;不清的話 schtasks /run 會再拉一條 → 兩條 cardsnap-ocr。
+# 只按命令列比對本通道(名或 UUID),且硬性跳過含鄰居 token 的行程;絕不照 process 名(cloudflared.exe)砍,免得殺到 stockdesk。
+function Stop-TunnelOrphan {
+    try {
+        $procs = Get-CimInstance Win32_Process -Filter "name='cloudflared.exe'" -ErrorAction SilentlyContinue
+        foreach ($p in $procs) {
+            $cl = $p.CommandLine
+            if (-not $cl) { continue }
+            if ($cl -match [regex]::Escape($NeighborGuard)) { continue }   # 鄰居 stockdesk,永遠不碰
+            if (($cl -match [regex]::Escape($TunnelName)) -or ($cl -match [regex]::Escape($TunnelId))) {
+                Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+                Write-Log "已清掉孤兒 cardsnap-ocr cloudflared PID $($p.ProcessId)"
+            }
+        }
+    } catch {}
 }
 
 # 強制結束占用某 port 的行程。
@@ -119,7 +142,9 @@ Write-Log "對外端點無回應(本機正常、外網正常)-> 重啟排程「$
 # 絕對不要用 Stop-Process -Name cloudflared:這台機器同時跑著另一條無關的 tunnel
 # (stockdesk-home → api.stockdesk.dev),照名字砍會把它一起殺掉。
 schtasks /end /tn "$TaskTunnel" 2>$null | Out-Null
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 2
+Stop-TunnelOrphan            # /end 只殺 launcher,先清掉孤兒 cloudflared,否則 /run 會又拉一條變兩條
+Start-Sleep -Seconds 1
 schtasks /run /tn "$TaskTunnel" | Out-Null
 
 # 通道建立需要一點時間,最多等 60 秒
