@@ -45,18 +45,40 @@ function Test-EndpointTwice([string]$url) {
     return (Test-Endpoint $url)
 }
 
-# 外網是否通(TCP 443 到 1.1.1.1)。外網本來就斷的話不該亂重啟通道
-function Test-Internet {
+# 強制結束占用某 port 的行程。
+# 服務「凍死」時 port 仍 LISTENING,新 uvicorn 綁不上就會靜靜死掉 → schtasks /run 變空轉。
+# 重啟前一定要先把占 port 的舊行程清掉。
+function Stop-PortOwner([int]$port) {
     try {
-        $c = New-Object Net.Sockets.TcpClient
-        $ar = $c.BeginConnect('1.1.1.1', 443, $null, $null)
-        $ok = $ar.AsyncWaitHandle.WaitOne(4000, $false)
-        if ($ok) { $c.EndConnect($ar) }
-        $c.Close()
-        return $ok
-    } catch {
-        return $false
+        $owners = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess |
+                  Sort-Object -Unique
+        foreach ($procId in $owners) {
+            if ($procId) {
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+                Write-Log "已強制結束占用 $port 的舊行程 PID $procId"
+            }
+        }
+    } catch {}
+}
+
+# 外網是否通。外網本來就斷的話不該亂重啟通道。
+# 注意:單用 1.1.1.1:443 會被部分台灣 ISP/路由器擋 → 永遠 false → 誤鎖通道分支(曾空轉兩小時)。
+# 改成:多個公共 DNS 的 443 任一通即算通;全失敗再退一步用正常 DNS+HTTPS 抓公開頁(涵蓋「只擋裸 IP、放行網域」的網路)。
+function Test-Internet {
+    foreach ($addr in @('1.1.1.1', '8.8.8.8', '9.9.9.9')) {
+        try {
+            $c = New-Object Net.Sockets.TcpClient
+            $ar = $c.BeginConnect($addr, 443, $null, $null)
+            $ok = $ar.AsyncWaitHandle.WaitOne(3000, $false)
+            if ($ok) { $c.EndConnect($ar); $c.Close(); return $true }
+            $c.Close()
+        } catch {}
     }
+    try {
+        $null = Invoke-WebRequest -Uri 'https://www.cloudflare.com/cdn-cgi/trace' -TimeoutSec 5 -UseBasicParsing
+        return $true
+    } catch {}
+    return $false
 }
 
 # --- 1. 本機 OCR 服務 ---
@@ -64,7 +86,10 @@ if (Test-EndpointTwice $LocalUrl) {
     $localOk = $true
 } else {
     $localOk = $false
-    Write-Log "本機服務無回應,重啟排程「$TaskServer」"
+    Write-Log "本機服務無回應,先結束舊排程+清掉占 8765 的凍死行程,再重啟排程「$TaskServer」"
+    schtasks /end /tn "$TaskServer" 2>$null | Out-Null   # 先終結排程自己的 process tree
+    Stop-PortOwner 8765                                   # 再補殺任何仍占著 8765 的孤兒行程
+    Start-Sleep -Seconds 2
     schtasks /run /tn "$TaskServer" | Out-Null
     Start-Sleep -Seconds 25
     if (Test-Endpoint $LocalUrl 20) {
