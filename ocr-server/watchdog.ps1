@@ -15,10 +15,14 @@ $PublicUrl = 'https://ocr.name-car-box.com/'
 $TaskServer = 'CardSnap OCR Server'
 $TaskTunnel = 'CardSnap Tunnel'
 # 通道身分:重啟通道時用來精準比對「本通道」的孤兒 cloudflared。
-# 這台同時跑著鄰居 stockdesk-home,NeighborGuard 是它的 token/UUID 前綴,永遠不碰。
+# 這台同時跑著鄰居 stockdesk-home,兩條通道不可以互相影響。
 $TunnelName    = 'cardsnap-ocr'   # 本通道名(cloudflared tunnel run 命令列會帶)
 $TunnelId      = 'c3de357c'       # 本通道 UUID 前綴(改用 config/credentials 執行時命令列帶的是 UUID)
-$NeighborGuard = '0024ebee'       # 鄰居 stockdesk 通道的 token/UUID 前綴,絕不誤殺
+# ⚠ 這裡原本填鄰居的 UUID 前綴 '0024ebee',那是無效的:鄰居走 --token,命令列上只有
+#   base64 字串,UUID 不會以明文出現(實測比對永遠 false)。真正在保護鄰居的是下面
+#   Stop-TunnelOrphan 的正向條件「命令列必須含本通道名或 UUID」。改用鄰居的專屬
+#   路徑當 guard,才真的有第二道防線。
+$NeighborGuard = 'stockdesk'      # 鄰居的 binary 與 config 都在 C:\cloudflared\stockdesk\,絕不誤殺
 
 $LogDir  = Join-Path $env:LOCALAPPDATA 'cardsnap'
 $LogFile = Join-Path $LogDir 'watchdog.log'
