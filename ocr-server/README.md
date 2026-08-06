@@ -57,15 +57,22 @@ $xmlArgs = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<repo>
 | 共用點 | 為什麼會互相影響 | 做法 |
 |---|---|---|
 | 同一顆 `cloudflared.exe`(PATH 上那顆) | 執行中的 exe 被鎖住,**升級必須同時停掉所有通道** | 每條通道自己一份 exe,各放各的目錄 |
-| 預設設定檔 `%USERPROFILE%\.cloudflared\config.yml` | 沒帶 `--config` 的通道都會讀到它 —— 也就是讀到別條的設定 | 每條 `--config` 指向自己的檔;預設檔改名停用 |
+| 預設設定檔 `%USERPROFILE%\.cloudflared\config.yml` | 沒帶 `--config` 的通道都會讀到它 —— 也就是讀到別條的設定 | 每條 `--config` 指向自己的檔 |
 | autoupdate(預設開啟) | 自動更新會**就地換掉正在執行的 exe 再自我重啟**,連帶換掉別條在用的那顆 | 每份 config 都寫 `no-autoupdate: true` |
+| 憑證同放 `%USERPROFILE%\.cloudflared\` | 共用目錄=共用故障面,清理或重裝時容易誤傷另一條 | 憑證也搬進各自目錄,整個共用目錄退役 |
 
-本專案的實際配置(這台機器另有一條無關的通道):
+本專案的實際配置(這台機器另有一條無關的通道),**目錄內自足、不依賴 `%USERPROFILE%\.cloudflared\`**:
 
 ```
-C:\cloudflared\cardsnap\cloudflared.exe    ← 專屬 binary,升級只動這顆
-C:\cloudflared\cardsnap\config.yml         ← 專屬設定(tunnel / credentials-file / no-autoupdate / ingress)
+C:\cloudflared\cardsnap\
+  cloudflared.exe                      ← 專屬 binary,升級只動這顆
+  config.yml                           ← tunnel / origincert / credentials-file / no-autoupdate / ingress
+  cert.pem                             ← origincert:`tunnel run <名稱>` 靠它把名稱解析成 UUID
+  c3de357c-….json                      ← credentials-file:這條通道的憑證
 ```
+
+`origincert` 與 `credentials-file` 一定要在 config 裡寫成絕對路徑 —— 不寫的話 cloudflared 會回頭
+去找 `%USERPROFILE%\.cloudflared\`,隔離就破功了。
 
 工作排程「CardSnap Tunnel」的動作:
 
@@ -87,6 +94,21 @@ schtasks /run /tn "CardSnap Tunnel"
 ```
 
 因為裝在使用者可寫的目錄,這個流程**不需要系統管理員權限**。
+
+### 要換 binary/路徑/設定又不能中斷服務
+
+Cloudflare 允許同一條 tunnel 掛多個 connector,利用這點做滾動切換:
+
+1. **先** `Disable-ScheduledTask` 停用 watchdog。否則它會在切換途中把你暫時起的 connector 當成
+   異常殘留清掉(它認的是通道身分,不認是誰起的)。
+2. 用新設定**另起**一條 connector(直接跑 `cloudflared.exe --config <新> tunnel run <名稱>`),
+   確認 log 出現 `Registered tunnel connection`、對外端點正常 —— 此時新舊同時服務。
+3. 停掉舊的那條,連續探測確認對外仍然正常。
+4. 讓排程用新設定重新啟動,再收掉步驟 2 的暫時 connector。
+5. 恢復 watchdog,並手動跑一次確認乾淨通過。
+
+⚠ 強制終結(`Stop-Process -Force`)的 connector 不會向 edge 註銷,Cloudflare 可能還會往它送幾個
+請求,實測會有 1~2 秒的 502 窗口。要完全無縫,就讓新 connector 多註冊一會兒再收舊的。
 
 ## 備註
 - trycloudflare.com 免費網址每次重開會變,變了就更新設定欄位;要固定網址可用具名 tunnel。
