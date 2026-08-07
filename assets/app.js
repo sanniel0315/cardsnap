@@ -1631,12 +1631,15 @@ function bind() {
   };
   // 登入畫面(UI)
   if ($('#loginContinue')) {
-    $('#loginContinue').onclick = () => { toast('請用下方「使用 Google 繼續」登入'); };
+    $('#loginContinue').onclick = () => {
+      const em = (($('#loginEmail') && $('#loginEmail').value) || '').trim();
+      const pw = ($('#loginPass') && $('#loginPass').value) || '';
+      if (!em || !pw) { toast('請輸入電子郵件與密碼'); return; }
+      if (typeof supabaseSignInEmail === 'function') supabaseSignInEmail(em, pw);
+    };
     $('#loginGoogle').onclick = () => { if (typeof signIn === 'function') signIn(); };
-    $('#loginMs').onclick = () => toast('Microsoft 登入即將推出,請改用 Google');
-    $('#loginSso').onclick = () => toast('SSO 登入即將推出,請改用 Google');
-    $('#loginForgot').onclick = () => toast('密碼重設即將推出');
-    $('#loginSignup').onclick = () => toast('用 Google 登入即可開始使用');
+    if ($('#loginForgot')) $('#loginForgot').onclick = () => toast('密碼重設即將推出');
+    if ($('#loginSignup')) $('#loginSignup').onclick = () => toast('直接用 Email + 密碼登入,首次會自動建立帳號');
     const _sk = $('#loginSkip'); if (_sk) _sk.style.display = 'none';
   }
   $('#lockBtn').onclick = tryUnlock;

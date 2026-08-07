@@ -74,7 +74,12 @@
     });
     sb.auth.onAuthStateChange((_event, session) => {
       sbUserId = session && session.user ? session.user.id : null;
-      if (sbUserId && typeof storageMode === 'function' && storageMode() === 'supabase') supabaseSync();
+      if (sbUserId) {
+        // 登入成功(Google 回跳 / email):關掉登入畫面並記住已登入,再同步
+        try { localStorage.setItem('cardsnap.authed', '1'); } catch (e) {}
+        if (typeof closeLogin === 'function') closeLogin();
+        if (typeof storageMode === 'function' && storageMode() === 'supabase') supabaseSync();
+      }
     });
   }
 
@@ -89,6 +94,19 @@
       options: { redirectTo: location.href.split('#')[0] },
     });
     if (error) toast('登入失敗:' + error.message);
+  }
+
+  /* ---- 登入:Email / 密碼(找不到帳號自動註冊,與 App signInWithEmail 一致)---- */
+  async function supabaseSignInEmail(email, password) {
+    if (!enabled()) { toast('Supabase 尚未設定(需填入 supabaseUrl / anonKey)'); return; }
+    if (!sb) { initSupabase(); toast('初始化中,請再按一次'); return; }
+    let { error } = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (error && /invalid login credentials/i.test(error.message || '')) {
+      const up = await sb.auth.signUp({ email: email, password: password });   // 沒帳號 → 自動註冊
+      error = up.error;
+    }
+    if (error) { toast('登入失敗:' + error.message); return; }
+    // 成功後由 onAuthStateChange 統一處理:設 authed + 關登入畫面 + 同步
   }
 
   /* ---- 雙向對帳:此處只做 I/O,對帳決策交給 core.reconcile(Web/App 共用)----
@@ -152,6 +170,7 @@
   // 暴露給 app.js(掛在 window,沿用本專案全域風格)
   window.initSupabase = initSupabase;
   window.supabaseSignIn = supabaseSignIn;
+  window.supabaseSignInEmail = supabaseSignInEmail;
   window.supabaseSync = supabaseSync;
   window.supabaseSchedulePush = supabaseSchedulePush;
 })();
