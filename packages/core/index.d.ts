@@ -29,6 +29,7 @@ export interface Contact {
   imagePaths?: string[]; // Storage 多面路徑
   created?: number;      // epoch ms
   updated?: number;      // epoch ms;同步衝突解以較大者勝
+  deleted?: number;      // epoch ms;>0=在回收站(軟刪除),空=正常。同步欄位
   [key: string]: unknown;
 }
 
@@ -100,3 +101,6 @@ export function rowToContact(row: Record<string, unknown>): Contact;
 
 /** 前端 contact → Supabase DB row(帶 owner_id)。 */
 export function contactToRow(contact: Contact, ownerId: string): Record<string, unknown>;
+
+/** 回收站:該聯絡人是否在回收站(deleted>0=軟刪除)。主清單/計數/搜尋一律濾掉 true 的。 */
+export function isTrashed(contact: Contact): boolean;

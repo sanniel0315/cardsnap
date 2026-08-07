@@ -302,6 +302,7 @@
       <div class="set-storage">
         <div class="ss-row"><span>佔用空間</span><b id="storageUsage">—</b></div>
         <div class="ss-btns">
+          <button id="openTrash" class="btn ghost sm">名片回收站</button>
           <button id="clearPhotos" class="btn ghost sm">清除所有照片</button>
           <button id="wipeAll" class="btn danger ghost sm">清空全部資料</button>
         </div>
@@ -311,6 +312,21 @@
       <span style="flex:1"></span>
       <button class="btn ghost" data-close>取消</button>
       <button id="setSave" class="btn primary">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<div id="trashModal" class="modal hidden">
+  <div class="modal-card sm">
+    <div class="modal-head"><h3>名片回收站</h3><button class="icon-btn close" data-close aria-label="關閉">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m5 5 10 10M15 5 5 15"/></svg></button></div>
+    <div class="modal-body">
+      <p class="muted set-hint">刪除的名片會保留在這裡 30 天,可還原或永久刪除。</p>
+      <div id="trashList"></div>
+    </div>
+    <div class="modal-foot">
+      <span style="flex:1"></span>
+      <button class="btn ghost" data-close>關閉</button>
     </div>
   </div>
 </div>

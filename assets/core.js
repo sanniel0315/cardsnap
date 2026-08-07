@@ -330,6 +330,7 @@
       image: '', images: [],
       created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       updated: r.updated_at ? new Date(r.updated_at).getTime() : 0,
+      deleted: Number(r.deleted) || 0,   // 回收站:>0=軟刪除時間
     };
   }
   function contactToRow(c, ownerId) {
@@ -348,10 +349,14 @@
       image_paths: paths,
       created_at: new Date(c.created || Date.now()).toISOString(),
       updated_at: new Date(c.updated || c.created || Date.now()).toISOString(),
+      deleted: c.deleted || null,   // 回收站:>0=軟刪除時間;null=正常
     };
   }
 
-  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing, mergeTombstones, applyTombstones, reconcile, rowToContact, contactToRow };
+  // 回收站:>0=軟刪除(在回收站),空=正常。主清單/計數/搜尋/去重一律濾掉 trashed
+  function isTrashed(c) { return !!(c && Number(c.deleted) > 0); }
+
+  const api = { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, syncMerge, isJunkContact, dropJunk, migrate, fillMissing, mergeTombstones, applyTombstones, reconcile, rowToContact, contactToRow, isTrashed };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CardSnapCore = api;
 })(typeof self !== 'undefined' ? self : this);

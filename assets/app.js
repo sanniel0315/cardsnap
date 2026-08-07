@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = window.CardSnapStore.KEY.contacts;
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk, fillMissing, reconcile, rowToContact, contactToRow } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk, fillMissing, reconcile, rowToContact, contactToRow, isTrashed } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -65,8 +65,50 @@ function saveTombstones() { window.CardSnapStore.setTombstones(tombstones); }
 function addTombstone(c) { if (!c) return; try { tombstones.push({ k: contactKey(c), ts: Date.now() }); } catch (e) {} }
 function allGroups() {
   const s = new Set();
-  contacts.forEach(c => { if (c.group) s.add(c.group); });
+  active().forEach(c => { if (c.group) s.add(c.group); });
   return [...s].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+}
+/* ---------- 回收站(軟刪除)---------- */
+const TRASH_TTL = 30 * 86400000;                       // 回收站保留 30 天
+function active() { return contacts.filter(c => !isTrashed(c)); }   // 正常清單(排除回收站)
+function trashList() { return contacts.filter(isTrashed).sort((a, b) => (b.deleted || 0) - (a.deleted || 0)); }
+function trashContact(c) { if (c) { c.deleted = Date.now(); c.updated = Date.now(); } }   // 移入回收站
+function restoreContact(c) { if (c) { c.deleted = 0; c.updated = Date.now(); } }          // 還原
+// 進回收站超過 30 天 → 永久刪除(記 tombstone,跨裝置不復活)
+function purgeExpiredTrash() {
+  const cut = Date.now() - TRASH_TTL;
+  const gone = contacts.filter(c => isTrashed(c) && Number(c.deleted) < cut);
+  if (!gone.length) return;
+  gone.forEach(addTombstone);
+  const ids = new Set(gone.map(c => c.id));
+  contacts = contacts.filter(c => !ids.has(c.id));
+  saveTombstones(); save();
+}
+function renderTrash() {
+  const box = $('#trashList'); if (!box) return;
+  const list = trashList();
+  if (!list.length) { box.innerHTML = '<p class="muted" style="text-align:center;padding:28px 0">回收站是空的</p>'; return; }
+  box.innerHTML = list.map(c => {
+    const sub = [c.company, c.title].filter(Boolean).join(' · ') || c.phone || c.email || '—';
+    const days = Math.max(0, 30 - Math.floor((Date.now() - (Number(c.deleted) || 0)) / 86400000));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)">
+      <div style="flex:1;min-width:0"><div style="font-weight:700">${esc(c.name || '未命名')}</div>
+        <div class="muted" style="font-size:13px">${esc(sub)}</div>
+        <div style="font-size:12px;color:#94a3b8">${days} 天後永久刪除</div></div>
+      <div style="display:flex;gap:6px;flex:none">
+        <button class="btn ghost sm" data-trash-restore="${esc(c.id)}">還原</button>
+        <button class="btn danger ghost sm" data-trash-del="${esc(c.id)}">永久刪除</button></div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-trash-restore]').forEach(b => b.onclick = () => {
+    const c = contacts.find(x => x.id === b.dataset.trashRestore);
+    if (c) { restoreContact(c); save(); render(); renderTrash(); toast('已還原'); }
+  });
+  box.querySelectorAll('[data-trash-del]').forEach(b => b.onclick = () => {
+    if (!confirm('永久刪除這張名片?此動作無法復原。')) return;
+    const c = contacts.find(x => x.id === b.dataset.trashDel);
+    if (c) { addTombstone(c); contacts = contacts.filter(x => x.id !== c.id); saveTombstones(); save(); render(); renderTrash(); toast('已永久刪除'); }
+  });
 }
 function fmtDate(ts) {
   if (!ts) return '';
@@ -571,7 +613,7 @@ function openManual() {
    ============================================================ */
 function allTags() {
   const s = new Set();
-  contacts.forEach(c => (c.tags || []).forEach(t => s.add(t)));
+  active().forEach(c => (c.tags || []).forEach(t => s.add(t)));
   return [...s].sort();
 }
 
@@ -583,6 +625,7 @@ const SORTERS = {
 function filtered() {
   const q = query.trim().toLowerCase();
   return contacts.filter(c => {
+    if (isTrashed(c)) return false;
     if (favView && !c.favorite) return false;
     if (activeGroup !== null) { if (activeGroup === '') { if (c.group) return false; } else if (c.group !== activeGroup) return false; }
     if (activeTag && !(c.tags || []).includes(activeTag)) return false;
@@ -613,8 +656,8 @@ function renderGroupSelect() {
   const sel = $('#groupSelect'); if (!sel) return;
   const groups = allGroups();
   if (activeGroup && activeGroup !== '' && !groups.includes(activeGroup)) activeGroup = null;
-  const counts = {}; contacts.forEach(c => { const g = c.group || ''; counts[g] = (counts[g] || 0) + 1; });
-  let html = `<option value="__all">全部分組 (${contacts.length})</option>`;
+  const counts = {}; active().forEach(c => { const g = c.group || ''; counts[g] = (counts[g] || 0) + 1; });
+  let html = `<option value="__all">全部分組 (${active().length})</option>`;
   groups.forEach(g => { html += `<option value="g:${esc(g)}">${esc(g)} (${counts[g] || 0})</option>`; });
   if (counts['']) html += `<option value="__none">未分組 (${counts['']})</option>`;
   sel.innerHTML = html;
@@ -626,9 +669,9 @@ function render() {
   document.body.classList.toggle('select-mode', selectMode);
   const data = filtered();
   const _filterOn = activeTag || activeGroup !== null || query.trim();
-  $('#countLabel').textContent = `共 ${contacts.length} 張` + (_filterOn ? ` · 符合 ${data.length}` : '名片');
+  $('#countLabel').textContent = `共 ${active().length} 張` + (_filterOn ? ` · 符合 ${data.length}` : '名片');
   renderGroupSelect();
-  $('#empty').classList.toggle('hidden', contacts.length !== 0);
+  $('#empty').classList.toggle('hidden', active().length !== 0);
 
   const tags = allTags();
   $('#tagChips').innerHTML = tags.map(t =>
@@ -683,7 +726,7 @@ function bindContactRow(row) {
   del.addEventListener('click', e => {
     e.stopPropagation();
     const c = contacts.find(x => x.id === id);
-    if (c && confirm('確定刪除這張名片?')) { addTombstone(c); contacts = contacts.filter(x => x.id !== id); saveTombstones(); save(); render(); toast('已刪除'); }
+    if (c) { trashContact(c); save(); render(); toast('已移到回收站'); }
     else { close(); }
   });
 }
@@ -719,7 +762,7 @@ function deskSideHTML() {
   const item = (label, count, active, attr) =>
     `<button class="dk-g ${active ? 'on' : ''}" ${attr}><span class="dk-g-name">${esc(label)}</span><span class="dk-g-n">${count}</span></button>`;
   let h = `<div class="dk-side-h">分組</div>`;
-  h += item('全部名片', contacts.length, activeGroup === null && !favView, 'data-g="__all"');
+  h += item('全部名片', active().length, activeGroup === null && !favView, 'data-g="__all"');
   h += item('收藏', gc.fav, favView, 'data-g="__fav"');
   gc.groups.forEach(([name, n]) => h += item(name, n, !favView && activeGroup === name, `data-g="g:${esc(name)}"`));
   if (gc.none) h += item('未分組', gc.none, !favView && activeGroup === '', 'data-g="__none"');
@@ -789,7 +832,7 @@ function renderDesktop(list, data) {
     else if (a === 'fav') { c.favorite = !c.favorite; save(); render(); }
     else if (a === 'share') shareContact(c);
     else if (a === 'vcard') download(new Blob([toVCard(c)], { type: 'text/vcard' }), `${c.name || 'card'}.vcf`);
-    else if (a === 'del') { if (confirm('確定刪除這張名片?')) { addTombstone(c); contacts = contacts.filter(x => x.id !== c.id); saveTombstones(); detailId = null; save(); render(); toast('已刪除'); } }
+    else if (a === 'del') { trashContact(c); detailId = null; save(); render(); toast('已移到回收站'); }
   });
   if (dEl && cur) dEl.querySelectorAll('[data-photo]').forEach(b => b.onclick = () => pickCardPhoto(cur.id, parseInt(b.dataset.photo, 10) || 0));
 }
@@ -840,6 +883,7 @@ function mergeDuplicates() {
   const before = contacts.length;
   const seen = new Map(); const out = [];
   for (const c of contacts) {
+    if (isTrashed(c)) { out.push(c); continue; }   // 回收站的不參與去重
     const k = contactKey(c);
     if (k && seen.has(k)) mergeInto(seen.get(k), c);
     else { out.push(c); if (k) seen.set(k, c); }
@@ -936,10 +980,9 @@ function mergeSelected() {
 function selectAll() { filtered().forEach(c => selected.add(c.id)); render(); updateSelectBar(); }
 function batchDelete() {
   if (!selected.size) { toast('尚未選取'); return; }
-  if (confirm(`刪除選取的 ${selected.size} 張名片?`)) {
-    contacts.forEach(c => { if (selected.has(c.id)) addTombstone(c); });
-    contacts = contacts.filter(c => !selected.has(c.id));
-    saveTombstones(); save(); exitSelect(); toast('已刪除');
+  if (confirm(`把選取的 ${selected.size} 張移到回收站?`)) {
+    contacts.forEach(c => { if (selected.has(c.id)) trashContact(c); });
+    save(); render(); exitSelect(); toast('已移到回收站');
   }
 }
 function batchTag() {
@@ -1159,7 +1202,7 @@ function recaptureFor(id, side = 0) {
    匯出格式(可全部或僅選取)
    ============================================================ */
 function exportData(fmt) {
-  const list = exportScope ? contacts.filter(c => exportScope.has(c.id)) : contacts;
+  const list = (exportScope ? contacts.filter(c => exportScope.has(c.id)) : contacts).filter(c => !isTrashed(c));
   if (!list.length) { toast('沒有可匯出的名片'); return; }
   let blob, fn;
   if (fmt === 'vcf') {
@@ -1592,10 +1635,9 @@ function bind() {
   $('#btnSave').onclick = saveEdit;
   $('#btnScanBack').onclick = scanBackForEdit;
   $('#btnDelete').onclick = () => {
-    if (editingId && confirm('確定刪除這張名片?')) {
-      const _c = contacts.find(x => x.id === editingId); if (_c) addTombstone(_c);
-      contacts = contacts.filter(c => c.id !== editingId);
-      saveTombstones(); save(); render(); closeModal('#editModal'); editingId = null; toast('已刪除');
+    if (editingId) {
+      const _c = contacts.find(x => x.id === editingId); if (_c) trashContact(_c);
+      save(); render(); closeModal('#editModal'); editingId = null; toast('已移到回收站');
     }
   };
 
@@ -1632,6 +1674,7 @@ function bind() {
     if (!confirm('再次確認:真的要刪除全部名片?')) return;
     contacts.forEach(addTombstone); contacts = []; saveTombstones(); save(); render(); updateStorage(); toast('已清空全部資料');
   };
+  $('#openTrash').onclick = () => { renderTrash(); openModal('#trashModal'); };
   // 登入畫面(UI)
   if ($('#loginContinue')) {
     $('#loginContinue').onclick = () => {
@@ -1649,7 +1692,7 @@ function bind() {
   $('#lockInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 
   // 匯出 / 匯入 / 手動 / 排序
-  $('#btnExport').onclick = () => { exportScope = null; $('#expCount').textContent = contacts.length; openModal('#exportModal'); };
+  $('#btnExport').onclick = () => { exportScope = null; $('#expCount').textContent = active().length; openModal('#exportModal'); };
   $$('.export-opt').forEach(b => b.onclick = () => exportData(b.dataset.fmt));
   $('#btnImport').onclick = () => $('#importInput').click();
   $('#importInput').onchange = e => { if (e.target.files[0]) importFromFile(e.target.files[0]); };
@@ -1694,6 +1737,7 @@ sortBy = settings.sortBy || 'recent';
 applyFontSize();
 bind();
 { const ss = $('#sortSelect'); if (ss) ss.value = sortBy; }
+purgeExpiredTrash();   // 清掉回收站中超過 30 天的
 render();
 if (!localStorage.getItem('cardsnap.authed') && (typeof googleClientId !== 'function' || googleClientId())) showLogin();
 if (settings.pinHash) showLock();
