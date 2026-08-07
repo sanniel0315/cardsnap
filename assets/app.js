@@ -1232,8 +1232,10 @@ async function fetchDriveUser() {
 }
 function renderNavUser() {
   const el = $('#navUser'); if (!el) return;
-  const drive = storageMode() === 'drive';
-  const u = drive ? (driveToken && driveUser) : (cloudToken && cloudUser);
+  const mode = storageMode();
+  const u = mode === 'drive' ? (driveToken && driveUser)
+          : mode === 'supabase' ? (typeof supabaseUser === 'function' ? supabaseUser() : null)
+          : (cloudToken && cloudUser);
   if (u) {
     const name = u.name || u.email || '使用者';
     const ava = u.picture
@@ -1249,6 +1251,7 @@ function renderNavUser() {
 }
 function logout() {
   try { if (driveToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(driveToken, () => {}); } catch (e) {}
+  try { if (typeof supabaseSignOut === 'function') supabaseSignOut(); } catch (e) {}   // 清 Supabase session,才能換帳號
   driveToken = ''; driveUser = null; cloudToken = ''; cloudUser = null;
   contacts = []; tombstones = [];
   try { localStorage.removeItem('cardsnap.authed'); localStorage.setItem(STORE_KEY, '[]'); localStorage.removeItem(TOMB_KEY); localStorage.removeItem('cardsnap.owner'); } catch (e) {}

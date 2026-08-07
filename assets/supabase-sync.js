@@ -12,6 +12,7 @@
   'use strict';
 
   let sb = null;            // Supabase client(未設定金鑰則保持 null)
+  let sbUser = null;        // 登入後的 user 物件(給 navbar 顯示)
   let sbUserId = null;      // 登入後的 auth uid
   let sbSyncing = false;
   let sbPushT = null;
@@ -73,15 +74,26 @@
       auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
     });
     sb.auth.onAuthStateChange((_event, session) => {
-      sbUserId = session && session.user ? session.user.id : null;
+      sbUser = session && session.user ? session.user : null;
+      sbUserId = sbUser ? sbUser.id : null;
       if (sbUserId) {
         // 登入成功(Google 回跳 / email):關掉登入畫面並記住已登入,再同步
         try { localStorage.setItem('cardsnap.authed', '1'); } catch (e) {}
         if (typeof closeLogin === 'function') closeLogin();
         if (typeof storageMode === 'function' && storageMode() === 'supabase') supabaseSync();
       }
+      if (typeof renderNavUser === 'function') renderNavUser();   // 更新 navbar 顯示登入者/登出鈕
     });
   }
+
+  /* ---- 給 navbar 用:目前登入者(email/名稱/頭像);未登入回 null ---- */
+  function supabaseUser() {
+    if (!sbUser) return null;
+    const m = sbUser.user_metadata || {};
+    return { email: sbUser.email || '', name: m.full_name || m.name || sbUser.email || '使用者', picture: m.avatar_url || m.picture || '' };
+  }
+  /* ---- 登出 Supabase(清 session,才能換帳號)---- */
+  async function supabaseSignOut() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } sbUser = null; sbUserId = null; }
 
   /* ---- 登入:Google OAuth(回跳回本頁,由 detectSessionInUrl 接手)---- */
   async function supabaseSignIn() {
@@ -171,6 +183,8 @@
   window.initSupabase = initSupabase;
   window.supabaseSignIn = supabaseSignIn;
   window.supabaseSignInEmail = supabaseSignInEmail;
+  window.supabaseUser = supabaseUser;
+  window.supabaseSignOut = supabaseSignOut;
   window.supabaseSync = supabaseSync;
   window.supabaseSchedulePush = supabaseSchedulePush;
 })();
