@@ -1560,6 +1560,13 @@ function openSettings() {
   $('#set_drivephotos').checked = settings.drivePhotos !== false;
   $('#set_force').checked = !!settings.forceEndpoint;
   if ($('#set_storage')) $('#set_storage').value = settings.storageMode || 'supabase';
+  // 帳號區:只有「email 登入」的帳號顯示改密碼/改 email(Google/Apple 由該服務管理)
+  const u = (typeof supabaseUser === 'function') ? supabaseUser() : null;
+  const acct = $('#acctSection');
+  if (acct) {
+    if (u && u.provider === 'email') { acct.style.display = ''; $('#acctEmail').textContent = u.email || '—'; }
+    else acct.style.display = 'none';
+  }
   updateStorage();
   openModal('#settingsModal');
 }
@@ -1675,6 +1682,17 @@ function bind() {
     contacts.forEach(addTombstone); contacts = []; saveTombstones(); save(); render(); updateStorage(); toast('已清空全部資料');
   };
   $('#openTrash').onclick = () => { renderTrash(); openModal('#trashModal'); };
+  if ($('#changePw')) $('#changePw').onclick = async () => {
+    const pw = window.prompt('輸入新密碼(至少 6 碼)'); if (!pw) return;
+    if (pw.length < 6) { toast('密碼至少 6 碼'); return; }
+    const r = await supabaseChangePassword(pw);
+    toast(r && r.error ? ('修改失敗:' + r.error) : '密碼已更新');
+  };
+  if ($('#changeEmail')) $('#changeEmail').onclick = async () => {
+    const em = window.prompt('輸入新的登入 email'); if (!em) return;
+    const r = await supabaseChangeEmail(em.trim());
+    toast(r && r.error ? ('變更失敗:' + r.error) : '已寄確認信到新舊 email,點信中連結後生效');
+  };
   // 登入畫面(UI)
   if ($('#loginContinue')) {
     $('#loginContinue').onclick = () => {
@@ -1684,7 +1702,12 @@ function bind() {
       if (typeof supabaseSignInEmail === 'function') supabaseSignInEmail(em, pw);
     };
     $('#loginGoogle').onclick = () => { if (typeof signIn === 'function') signIn(); };
-    if ($('#loginForgot')) $('#loginForgot').onclick = () => toast('密碼重設即將推出');
+    if ($('#loginForgot')) $('#loginForgot').onclick = async () => {
+      const em = (($('#loginEmail') && $('#loginEmail').value) || '').trim() || window.prompt('輸入你的登入 email');
+      if (!em) return;
+      const r = await supabaseResetPassword(em);
+      toast(r && r.error ? ('寄送失敗:' + r.error) : '密碼重設信已寄出,請收信(含垃圾信匣)');
+    };
     if ($('#loginSignup')) $('#loginSignup').onclick = () => toast('直接用 Email + 密碼登入,首次會自動建立帳號');
     const _sk = $('#loginSkip'); if (_sk) _sk.style.display = 'none';
   }

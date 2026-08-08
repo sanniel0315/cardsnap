@@ -73,7 +73,7 @@
     sb = supabase.createClient(cfg().supabaseUrl, cfg().supabaseAnonKey, {
       auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
     });
-    sb.auth.onAuthStateChange((_event, session) => {
+    sb.auth.onAuthStateChange((event, session) => {
       sbUser = session && session.user ? session.user : null;
       sbUserId = sbUser ? sbUser.id : null;
       if (sbUserId) {
@@ -82,15 +82,36 @@
         if (typeof closeLogin === 'function') closeLogin();
         if (typeof storageMode === 'function' && storageMode() === 'supabase') supabaseSync();
       }
+      // 從「忘記密碼」重設信回跳:此時已是 recovery session,提示設定新密碼
+      if (event === 'PASSWORD_RECOVERY') {
+        const np = window.prompt('請設定新密碼(至少 6 碼)');
+        if (np && np.length >= 6) supabaseChangePassword(np).then(r => { if (typeof toast === 'function') toast(r.error ? ('設定失敗:' + r.error) : '密碼已更新,請用新密碼'); });
+      }
       if (typeof renderNavUser === 'function') renderNavUser();   // 更新 navbar 顯示登入者/登出鈕
     });
   }
 
-  /* ---- 給 navbar 用:目前登入者(email/名稱/頭像);未登入回 null ---- */
+  /* ---- 給 navbar 用:目前登入者(email/名稱/頭像/登入方式);未登入回 null ---- */
   function supabaseUser() {
     if (!sbUser) return null;
     const m = sbUser.user_metadata || {};
-    return { email: sbUser.email || '', name: m.full_name || m.name || sbUser.email || '使用者', picture: m.avatar_url || m.picture || '' };
+    return { email: sbUser.email || '', name: m.full_name || m.name || sbUser.email || '使用者', picture: m.avatar_url || m.picture || '', provider: (sbUser.app_metadata && sbUser.app_metadata.provider) || 'email' };
+  }
+  /* ---- 帳號:改密碼 / 改 email(需已登入);忘記密碼(未登入,寄重設信)---- */
+  async function supabaseChangePassword(pw) {
+    if (!sb) return { error: '未初始化' };
+    const { error } = await sb.auth.updateUser({ password: pw });
+    return { error: error && error.message };
+  }
+  async function supabaseChangeEmail(email) {
+    if (!sb) return { error: '未初始化' };
+    const { error } = await sb.auth.updateUser({ email });
+    return { error: error && error.message };
+  }
+  async function supabaseResetPassword(email) {
+    if (!sb) { initSupabase(); return { error: '初始化中,請再試一次' }; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    return { error: error && error.message };
   }
   /* ---- 登出 Supabase(清 session,才能換帳號)---- */
   async function supabaseSignOut() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } sbUser = null; sbUserId = null; }
@@ -185,6 +206,9 @@
   window.supabaseSignInEmail = supabaseSignInEmail;
   window.supabaseUser = supabaseUser;
   window.supabaseSignOut = supabaseSignOut;
+  window.supabaseChangePassword = supabaseChangePassword;
+  window.supabaseChangeEmail = supabaseChangeEmail;
+  window.supabaseResetPassword = supabaseResetPassword;
   window.supabaseSync = supabaseSync;
   window.supabaseSchedulePush = supabaseSchedulePush;
 })();
