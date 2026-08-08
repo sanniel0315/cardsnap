@@ -300,6 +300,12 @@
       </div>
       <p class="muted set-hint">辨識語言會在下次拍照時套用;切換非繁中語言首次辨識需下載語言模型。</p>
       <div class="set-storage">
+        <div class="ss-row"><span>整理</span></div>
+        <div class="ss-btns">
+          <button id="openManage" class="btn ghost sm">群組 / 標籤管理</button>
+        </div>
+      </div>
+      <div class="set-storage">
         <div class="ss-row"><span>佔用空間</span><b id="storageUsage">—</b></div>
         <div class="ss-btns">
           <button id="openTrash" class="btn ghost sm">名片回收站</button>
@@ -319,6 +325,21 @@
       <span style="flex:1"></span>
       <button class="btn ghost" data-close>取消</button>
       <button id="setSave" class="btn primary">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<div id="manageModal" class="modal hidden">
+  <div class="modal-card sm">
+    <div class="modal-head"><h3>群組 / 標籤管理</h3><button class="icon-btn close" data-close aria-label="關閉">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m5 5 10 10M15 5 5 15"/></svg></button></div>
+    <div class="modal-body">
+      <p class="muted set-hint">改名或刪除會套用到所有名片(名片本身保留)。</p>
+      <div id="manageList"></div>
+    </div>
+    <div class="modal-foot">
+      <span style="flex:1"></span>
+      <button class="btn ghost" data-close>關閉</button>
     </div>
   </div>
 </div>

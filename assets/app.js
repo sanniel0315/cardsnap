@@ -110,6 +110,49 @@ function renderTrash() {
     if (c) { addTombstone(c); contacts = contacts.filter(x => x.id !== c.id); saveTombstones(); save(); render(); renderTrash(); toast('已永久刪除'); }
   });
 }
+/* ---------- 群組 / 標籤管理(改名 / 刪除,套用到所有名片)---------- */
+function renameGroup(oldN, to) { contacts.forEach(c => { if (c.group === oldN) { c.group = to; c.updated = Date.now(); } }); }
+function deleteGroup(name) { contacts.forEach(c => { if (c.group === name) { c.group = ''; c.updated = Date.now(); } }); }
+function renameTag(oldN, to) { contacts.forEach(c => { if ((c.tags || []).includes(oldN)) { c.tags = [...new Set(c.tags.map(t => t === oldN ? to : t))]; c.updated = Date.now(); } }); }
+function deleteTag(name) { contacts.forEach(c => { if ((c.tags || []).includes(name)) { c.tags = c.tags.filter(t => t !== name); c.updated = Date.now(); } }); }
+function renderManage() {
+  const box = $('#manageList'); if (!box) return;
+  const gc = new Map(), tc = new Map();
+  active().forEach(c => {
+    if (c.group) gc.set(c.group, (gc.get(c.group) || 0) + 1);
+    (c.tags || []).forEach(t => tc.set(t, (tc.get(t) || 0) + 1));
+  });
+  const groups = [...gc.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  const tags = [...tc.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  const folder = '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" style="vertical-align:-2px;margin-right:5px"><path d="M2.5 7A1.5 1.5 0 0 1 4 5.5h3l1.5 1.7H16A1.5 1.5 0 0 1 17.5 8.7v5A1.5 1.5 0 0 1 16 15.2H4a1.5 1.5 0 0 1-1.5-1.5z"/></svg>';
+  const row = (kind, name, count) => `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)">
+    <span style="flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${kind === 'group' ? folder : '<span style="color:#94a3b8">#</span> '}${esc(name)}</span>
+    <span class="muted" style="font-size:13px;min-width:22px;text-align:right">${count}</span>
+    <button class="btn ghost sm" data-mg-kind="${kind}" data-mg-rename="${esc(name)}">改名</button>
+    <button class="btn danger ghost sm" data-mg-kind="${kind}" data-mg-del="${esc(name)}">刪除</button>
+  </div>`;
+  const empty = (msg) => `<p class="muted" style="padding:6px 0;font-size:13px">${msg}</p>`;
+  box.innerHTML =
+    `<div class="muted" style="font-size:13px;font-weight:700;margin:2px 0">群組(${groups.length})</div>` +
+    (groups.length ? groups.map(g => row('group', g, gc.get(g))).join('') : empty('沒有群組。在名片的「分組」欄位填入即可建立。')) +
+    `<div class="muted" style="font-size:13px;font-weight:700;margin:16px 0 2px">標籤(${tags.length})</div>` +
+    (tags.length ? tags.map(t => row('tag', t, tc.get(t))).join('') : empty('沒有標籤。編輯名片時加上即可。'));
+  box.querySelectorAll('[data-mg-rename]').forEach(b => b.onclick = () => {
+    const kind = b.dataset.mgKind, name = b.dataset.mgRename;
+    const to = (window.prompt(kind === 'group' ? '群組改名' : '標籤改名', name) || '').trim();
+    if (!to || to === name) return;
+    if (kind === 'group') { renameGroup(name, to); if (activeGroup === name) activeGroup = to; }
+    else { renameTag(name, to); if (activeTag === name) activeTag = to; }
+    save(); render(); renderManage(); toast('已改名');
+  });
+  box.querySelectorAll('[data-mg-del]').forEach(b => b.onclick = () => {
+    const kind = b.dataset.mgKind, name = b.dataset.mgDel;
+    if (!window.confirm(`刪除${kind === 'group' ? '群組' : '標籤'}「${name}」?會從所有名片移除(名片本身保留)。`)) return;
+    if (kind === 'group') { deleteGroup(name); if (activeGroup === name) activeGroup = null; }
+    else { deleteTag(name); if (activeTag === name) activeTag = null; }
+    save(); render(); renderManage(); toast('已刪除');
+  });
+}
 function fmtDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
@@ -1682,6 +1725,7 @@ function bind() {
     contacts.forEach(addTombstone); contacts = []; saveTombstones(); save(); render(); updateStorage(); toast('已清空全部資料');
   };
   $('#openTrash').onclick = () => { renderTrash(); openModal('#trashModal'); };
+  $('#openManage').onclick = () => { renderManage(); openModal('#manageModal'); };
   if ($('#changePw')) $('#changePw').onclick = async () => {
     const pw = window.prompt('輸入新密碼(至少 6 碼)'); if (!pw) return;
     if (pw.length < 6) { toast('密碼至少 6 碼'); return; }
