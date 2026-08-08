@@ -116,6 +116,13 @@
   /* ---- 登出 Supabase(清 session,才能換帳號)---- */
   async function supabaseSignOut() { if (sb) { try { await sb.auth.signOut(); } catch (e) {} } sbUser = null; sbUserId = null; }
 
+  /* ---- 重置同步:清掉雲端(自己的)墓碑,讓被誤刪的資料能重新同步回來 ---- */
+  async function supabaseResetTombstones() {
+    if (!sb || !sbUserId) return { error: '未登入' };
+    const { error } = await sb.from('tombstones').delete().eq('owner_id', sbUserId);
+    return { error: error && error.message };
+  }
+
   /* ---- 登入:Google OAuth(回跳回本頁,由 detectSessionInUrl 接手)---- */
   async function supabaseSignIn() {
     if (!enabled()) { toast('Supabase 尚未設定(需填入 supabaseUrl / anonKey)'); return; }
@@ -206,6 +213,7 @@
   window.supabaseSignInEmail = supabaseSignInEmail;
   window.supabaseUser = supabaseUser;
   window.supabaseSignOut = supabaseSignOut;
+  window.supabaseResetTombstones = supabaseResetTombstones;
   window.supabaseChangePassword = supabaseChangePassword;
   window.supabaseChangeEmail = supabaseChangeEmail;
   window.supabaseResetPassword = supabaseResetPassword;

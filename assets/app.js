@@ -1726,6 +1726,14 @@ function bind() {
   };
   $('#openTrash').onclick = () => { renderTrash(); openModal('#trashModal'); };
   $('#openManage').onclick = () => { renderManage(); openModal('#manageModal'); };
+  $('#resetSync').onclick = async () => {
+    if (!confirm('重置本機同步?\n\n會清除「刪除記錄」並重新從雲端同步,用來救回被誤刪、同步不見的名片。\n(先前已永久刪除的名片可能會重新出現)')) return;
+    tombstones = []; saveTombstones();                                   // 清本機墓碑
+    if (typeof supabaseResetTombstones === 'function') { const r = await supabaseResetTombstones(); if (r && r.error) { toast('清雲端墓碑失敗:' + r.error); return; } }  // 清雲端墓碑
+    toast('已重置,重新同步中…');
+    if (storageMode() === 'supabase' && typeof supabaseSync === 'function') supabaseSync();
+    else if (storageMode() === 'drive') doSync();
+  };
   if ($('#changePw')) $('#changePw').onclick = async () => {
     const pw = window.prompt('輸入新密碼(至少 6 碼)'); if (!pw) return;
     if (pw.length < 6) { toast('密碼至少 6 碼'); return; }
