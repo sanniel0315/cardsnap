@@ -221,7 +221,12 @@
     if (/PK\x03\x04|sharedStrings|xl\/worksheets|Content_Types|<\?xml/i.test(blob)) return true; // Excel/zip 殘骸
     const name = String(x.name || '').trim();
     const company = String(x.company || '').trim();
-    if (!name && !company) return true;                         // 空白名片
+    if (!name && !company) {
+      // 沒姓名也沒公司,但有照片或聯絡資訊(電話/email/地址)→ 仍是有效名片(掃描卡待補欄位),不當垃圾丟
+      const hasPhoto = !!(x.image || (Array.isArray(x.images) && x.images.length));
+      const hasContact = !!(x.email || x.phone || (Array.isArray(x.phones) && x.phones.length) || String(x.address || '').trim());
+      return !(hasPhoto || hasContact);                         // 真正全空才算垃圾
+    }
     return false;
   }
   function dropJunk(arr) { return (Array.isArray(arr) ? arr : []).filter(c => !isJunkContact(c)); }

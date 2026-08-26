@@ -109,7 +109,12 @@ function isJunk(x) {
   if (!x) return true;
   const b = [x.name, x.company, x.title, x.address, x.note, x.website].join(' ');
   if (/�/.test(b) || /[\x00-\x08\x0E-\x1F]/.test(b)) return true;
-  if (!String(x.name || '').trim() && !String(x.company || '').trim()) return true;
+  if (!String(x.name || '').trim() && !String(x.company || '').trim()) {
+    // 沒姓名沒公司但有照片/聯絡資訊 → 有效名片(掃描卡待補欄位),不當垃圾;真正全空才丟
+    const hasPhoto = !!(x.image || (Array.isArray(x.images) && x.images.length));
+    const hasContact = !!(x.email || x.phone || (Array.isArray(x.phones) && x.phones.length) || String(x.address || '').trim());
+    return !(hasPhoto || hasContact);
+  }
   return false;
 }
 // 與前端 core.contactKey 對齊:e:email / p:phone數字 / n:name|company
