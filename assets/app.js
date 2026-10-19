@@ -1475,6 +1475,17 @@ async function pushPhotosToDrive() {
   } catch (e) { /* 資料夾/scope 失敗 → 略過 */ }
 }
 
+// 舊版手機 App 曾把本機檔案路徑(file://)寫進 Drive,網頁讀不到 → 視同沒照片,
+// 才不會顯示破圖,也不會在合併時蓋掉網頁這邊真正的照片
+function dropLocalPaths(list) {
+  return list.map(c => {
+    const imgs = (Array.isArray(c.images) && c.images.length) ? c.images : (c.image ? [c.image] : []);
+    if (!imgs.some(u => String(u).startsWith('file:'))) return c;
+    const keep = imgs.filter(u => u && !String(u).startsWith('file:'));
+    return Object.assign({}, c, { images: keep, image: keep[0] || '' });
+  });
+}
+
 async function doSync() {
   if (!driveToken) { signInAndSync(); return; }
   if (syncing) return;                    // 已在同步,避免重疊讓 icon 卡住
@@ -1497,7 +1508,7 @@ async function doSync() {
       remoteTombs = Array.isArray(dj.tombstones) ? dj.tombstones : [];
     }
     // 與手機 App 同一套對帳(含刪除紀錄),寫回時保留 tombstones,App 刪的卡才不會被網頁救活
-    const out = reconcile(contacts, remote, tombstones, remoteTombs);
+    const out = reconcile(dropLocalPaths(contacts), dropLocalPaths(remote), tombstones, remoteTombs);
     contacts = out.merged; tombstones = out.tombstones; saveTombstones();
     try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
     await pushPhotosToDrive();   // 上傳照片到可見資料夾,id 寫回 contacts 一併存
