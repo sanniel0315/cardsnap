@@ -1466,7 +1466,7 @@ async function pushPhotosToDrive() {
     let n = 0;
     for (const c of contacts) {
       const img = (c.images && c.images[0]) || c.image;
-      if (img && !c.drivePhoto) {
+      if (img && String(img).startsWith('data:') && !c.drivePhoto) {
         try { c.drivePhoto = await driveUploadImage(img, (c.name || 'card') + '-' + c.id + '.jpg', folder); n++; }
         catch (e) { /* 略過這張 */ }
         if (n >= 20) break;   // 單次上限,避免太久
@@ -1474,6 +1474,83 @@ async function pushPhotosToDrive() {
     }
   } catch (e) { /* 資料夾/scope 失敗 → 略過 */ }
 }
+
+/* ---------- Drive 照片獨立檔:cardsnap.json 只存 gdrive:<fileId>,照片各自一檔(appDataFolder) ----------
+   整包內嵌 base64 會讓 cardsnap.json 變成數十~數百 MB,每次同步都整包上下傳(轉圈不停、localStorage 爆)。 */
+const IMG_MAP_KEY = 'cardsnap.drive.imgmap';            // data URL 指紋 → fileId,上傳過不再傳
+const IMG_UPLOADS_PER_SYNC = 60;                        // 每輪上限,舊資料分批搬,每輪都能在逾時內完成
+function loadImgMap() { try { return JSON.parse(localStorage.getItem(IMG_MAP_KEY)) || {}; } catch (e) { return {}; } }
+function photoList(c) { return (Array.isArray(c.images) && c.images.length) ? c.images : (c.image ? [c.image] : []); }
+async function uploadDriveImage(dataUrl) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({ name: 'img.jpg', parents: ['appDataFolder'] })], { type: 'application/json' }));
+  form.append('file', blob);
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    { method: 'POST', headers: { Authorization: 'Bearer ' + driveToken }, body: form });
+  if (!r.ok) throw new Error('Drive 照片上傳失敗 ' + r.status);
+  return (await r.json()).id;
+}
+// 名單裡的 data: 照片上傳成獨立檔、就地換成 gdrive:<id>;回傳是否還有沒搬完的
+async function photosToDrive(list) {
+  const map = loadImgMap();
+  let uploads = 0, pending = false;
+  for (const c of list) {
+    const imgs = photoList(c);
+    if (!imgs.some(u => String(u).startsWith('data:'))) continue;
+    const out = [];
+    for (const u of imgs) {
+      if (!String(u).startsWith('data:')) { out.push(u); continue; }
+      const k = u.length + ':' + u.slice(-64);
+      if (!map[k]) {
+        if (uploads >= IMG_UPLOADS_PER_SYNC) { pending = true; out.push(u); continue; }
+        map[k] = await uploadDriveImage(u); uploads++;
+        try { localStorage.setItem(IMG_MAP_KEY, JSON.stringify(map)); } catch (e) {}
+      }
+      out.push('gdrive:' + map[k]);
+    }
+    c.images = out; c.image = out[0] || '';
+  }
+  return pending;
+}
+// 顯示:<img src="gdrive:..."> 一出現在畫面就換成帶授權抓下來的 blob URL(模板不用改)
+const drivePhotoCache = new Map();
+let drivePhotoActive = 0; const drivePhotoQueue = [];
+function drivePhotoUrl(id) {
+  if (!drivePhotoCache.has(id)) {
+    drivePhotoCache.set(id, new Promise(res => {
+      drivePhotoQueue.push(async () => {
+        try {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: { Authorization: 'Bearer ' + driveToken } });
+          res(r.ok ? URL.createObjectURL(await r.blob()) : '');
+          if (!r.ok) drivePhotoCache.delete(id);          // 授權過期等失敗 → 下次再試
+        } catch (e) { drivePhotoCache.delete(id); res(''); }
+      });
+      pumpDrivePhotos();
+    }));
+  }
+  return drivePhotoCache.get(id);
+}
+function pumpDrivePhotos() {
+  while (drivePhotoActive < 6 && drivePhotoQueue.length) {
+    const job = drivePhotoQueue.shift(); drivePhotoActive++;
+    job().finally(() => { drivePhotoActive--; pumpDrivePhotos(); });
+  }
+}
+function hydrateDrivePhoto(img) {
+  const s = img.getAttribute('src');
+  if (s && s.startsWith('gdrive:')) { img.dataset.gref = s.slice(7); img.removeAttribute('src'); }
+  const id = img.dataset.gref;
+  if (!id || img.getAttribute('src') || !driveToken) return;
+  drivePhotoUrl(id).then(u => { if (u && img.dataset.gref === id) img.src = u; });
+}
+function hydrateDrivePhotos(root) { (root || document).querySelectorAll('img[src^="gdrive:"], img[data-gref]:not([src])').forEach(hydrateDrivePhoto); }
+new MutationObserver(muts => {
+  for (const m of muts) for (const n of m.addedNodes) {
+    if (n.nodeType !== 1) continue;
+    if (n.tagName === 'IMG') hydrateDrivePhoto(n); else hydrateDrivePhotos(n);
+  }
+}).observe(document.documentElement, { childList: true, subtree: true });
 
 // 舊版手機 App 曾把本機檔案路徑(file://)寫進 Drive,網頁讀不到 → 視同沒照片,
 // 才不會顯示破圖,也不會在合併時蓋掉網頁這邊真正的照片
@@ -1510,8 +1587,10 @@ async function doSync() {
     // 與手機 App 同一套對帳(含刪除紀錄),寫回時保留 tombstones,App 刪的卡才不會被網頁救活
     const out = reconcile(dropLocalPaths(contacts), dropLocalPaths(remote), tombstones, remoteTombs);
     contacts = out.merged; tombstones = out.tombstones; saveTombstones();
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
+    render();
     await pushPhotosToDrive();   // 上傳照片到可見資料夾,id 寫回 contacts 一併存
+    const morePhotos = await photosToDrive(contacts);   // 照片拆成獨立檔,名單只留 gdrive:<id>
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {}
     const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts, tombstones });
     if (file) {
       await driveApi(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`,
@@ -1523,7 +1602,9 @@ async function doSync() {
       form.append('file', new Blob([body], { type: 'application/json' }));
       await driveApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', body: form });
     }
-    setSyncState('synced'); markSynced(); toast('已與 Google Drive 同步');
+    setSyncState('synced'); markSynced(); hydrateDrivePhotos();
+    if (morePhotos) { toast('照片搬移中,稍後自動繼續…'); clearTimeout(drivePushT); drivePushT = setTimeout(doSync, 3000); }
+    else toast('已與 Google Drive 同步');
   } catch (e) {
     setSyncState('idle');
     toast(e && e.name === 'AbortError' ? '同步逾時,請檢查網路後再試一次' : ('同步失敗:' + (e && e.message ? e.message : e)));
