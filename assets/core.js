@@ -197,6 +197,13 @@
   }
 
   /* ---------- 雙向同步合併:聯集去重,較新者勝 ---------- */
+  // 較新的版本沒照片(例如來自不帶內嵌照片的 Supabase 列)時沿用另一端的照片,同步不會把照片洗掉
+  function photosOf(c) { return (Array.isArray(c.images) && c.images.filter(Boolean).length) ? c.images.filter(Boolean) : (c.image ? [c.image] : []); }
+  function keepPhotos(win, lose) {
+    if (photosOf(win).length) return win;
+    const imgs = photosOf(lose);
+    return imgs.length ? Object.assign({}, win, { image: imgs[0], images: imgs }) : win;
+  }
   function syncMerge(local, remote) {
     const map = new Map();
     const put = c => {
@@ -204,7 +211,9 @@
       const ex = map.get(k);
       const t = (c.updated || c.created || 0);
       const te = ex ? (ex.updated || ex.created || 0) : -1;
-      if (!ex || t >= te) map.set(k, c);
+      if (!ex) { map.set(k, c); return; }
+      const [win, lose] = t >= te ? [c, ex] : [ex, c];
+      map.set(k, keepPhotos(win, lose));
     };
     (Array.isArray(local) ? local : []).forEach(put);
     (Array.isArray(remote) ? remote : []).forEach(put);

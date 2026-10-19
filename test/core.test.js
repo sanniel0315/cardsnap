@@ -300,3 +300,15 @@ test('rowToContact:舊資料只有 image_path 也能回出 imagePaths', () => {
   const back = core.rowToContact({ id: 'y', name: '李', image_path: 'u/y.jpg' });
   assert.deepEqual(back.imagePaths, ['u/y.jpg']);
 });
+
+test('syncMerge:較新的版本沒照片時,保留另一端的照片(不讓同步把照片洗掉)', () => {
+  const withPhoto = { id: '1', name: '王', phone: '0912', image: 'data:a', images: ['data:a', 'data:b'], updated: 100 };
+  const noPhoto = { id: '1', name: '王大明', phone: '0912', image: '', images: [], updated: 200 };
+  for (const [l, r] of [[noPhoto, withPhoto], [withPhoto, noPhoto]]) {
+    const [m] = core.syncMerge([l], [r]);
+    assert.equal(m.name, '王大明');
+    assert.deepEqual(m.images, ['data:a', 'data:b']);
+    assert.equal(m.image, 'data:a');
+  }
+  assert.equal(noPhoto.image, '', '不改動傳入的物件');
+});
