@@ -7,7 +7,7 @@
 'use strict';
 
 const STORE_KEY = window.CardSnapStore.KEY.contacts;
-const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, syncMerge, contactKey, migrate, dropJunk, fillMissing, reconcile, rowToContact, contactToRow, isTrashed } = window.CardSnapCore;
+const { parseCard, toVCard, toCSV, parseCSV, parseVCards, mergeContacts, contactKey, migrate, dropJunk, fillMissing, reconcile, rowToContact, contactToRow, isTrashed } = window.CardSnapCore;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -1482,21 +1482,26 @@ async function doSync() {
   setSyncState('syncing');
   const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   syncSignal = ctrl ? ctrl.signal : null;
-  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 20000);  // 20s 逾時
+  // 含照片的 cardsnap.json 可能幾十 MB(手機 App 也寫同一檔),20 秒下載不完 → 放寬到 3 分鐘
+  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 180000);
   try {
     const q = encodeURIComponent("name='cardsnap.json'");
     const lr = await driveApi(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`);
     const lj = await lr.json();
     const file = (lj.files || [])[0];
-    let remote = [];
+    let remote = [], remoteTombs = [];
     if (file) {
       const dr = await driveApi(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`);
       const dj = await dr.json().catch(() => ({}));
       remote = Array.isArray(dj) ? dj : (dj.contacts || []);
+      remoteTombs = Array.isArray(dj.tombstones) ? dj.tombstones : [];
     }
-    contacts = dropJunk(syncMerge(contacts, remote)); try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
+    // 與手機 App 同一套對帳(含刪除紀錄),寫回時保留 tombstones,App 刪的卡才不會被網頁救活
+    const out = reconcile(contacts, remote, tombstones, remoteTombs);
+    contacts = out.merged; tombstones = out.tombstones; saveTombstones();
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(contacts)); } catch (e) {} render();
     await pushPhotosToDrive();   // 上傳照片到可見資料夾,id 寫回 contacts 一併存
-    const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts });
+    const body = JSON.stringify({ version: 1, updatedAt: Date.now(), contacts, tombstones });
     if (file) {
       await driveApi(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`,
         { method: 'PATCH', headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' }, body });
