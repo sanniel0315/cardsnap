@@ -61,7 +61,7 @@ h1 .grad{background:linear-gradient(120deg,var(--teal),var(--blue));-webkit-back
 .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 .note{margin-top:18px;color:var(--mut);font-size:14px;display:flex;gap:8px;justify-content:center;align-items:center}
 .stores{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px}
-.store-badge{display:inline-flex;align-items:center;gap:11px;background:var(--ink);color:#fff;border-radius:13px;padding:9px 17px;box-shadow:0 8px 22px -12px rgba(15,23,42,.5)}
+.store-badge{text-decoration:none;display:inline-flex;align-items:center;gap:11px;background:var(--ink);color:#fff;border-radius:13px;padding:9px 17px;box-shadow:0 8px 22px -12px rgba(15,23,42,.5)}
 .store-badge svg{width:22px;height:22px;fill:#fff;flex:none}
 .store-badge small{display:block;font-size:10px;opacity:.72;font-weight:600;line-height:1.25}
 .store-badge b{display:block;font-size:15px;font-weight:700;line-height:1.2;letter-spacing:.01em}
@@ -181,9 +181,9 @@ footer{padding:40px 0;text-align:center;color:var(--mut);font-size:14px}
     </div>
     <div class="note"><svg class="ic" style="width:18px;height:18px;color:#0d9488" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>用 Google 登入就好,不用再記一組新密碼</div>
 
-    <div class="stores" aria-label="行動 App 即將上架">
-      <span class="store-badge"><svg viewBox="0 0 24 24"><path d="M16.4 12.9c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.3 2-1.4 2.5-.4 6.1 1 8.1.7 1 1.4 2.1 2.5 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.8-1 2.5-2c.5-.7.7-1.1 1.1-1.9-2.9-1.1-2.5-4-2.5-4zM14.6 6.4c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.5-.8 2.4.9.1 1.8-.4 2.4-1.1z"/></svg><span><small>即將登陸</small><b>App Store</b></span></span>
-      <span class="store-badge"><svg viewBox="0 0 24 24"><path d="M4 3.5v17l14-8.5z"/></svg><span><small>即將登陸</small><b>Google Play</b></span></span>
+    <div class="stores" aria-label="下載行動 App">
+      <a class="store-badge" href="https://apps.apple.com/tw/app/id6797053372" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M16.4 12.9c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.3 2-1.4 2.5-.4 6.1 1 8.1.7 1 1.4 2.1 2.5 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.8-1 2.5-2c.5-.7.7-1.1 1.1-1.9-2.9-1.1-2.5-4-2.5-4zM14.6 6.4c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.5-.8 2.4.9.1 1.8-.4 2.4-1.1z"/></svg><span><small>下載於</small><b>App Store</b></span></a>
+      <a class="store-badge" href="https://play.google.com/store/apps/details?id=com.cardsnap.tw" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M4 3.5v17l14-8.5z"/></svg><span><small>立即下載</small><b>Google Play</b></span></a>
     </div>
 
     <a class="shot reveal" href="./demo.html" aria-label="觀看動畫示範"><div class="card">
