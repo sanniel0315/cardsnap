@@ -8,6 +8,8 @@ CardSnap 本機 GPU OCR 伺服器
 需求:  先安裝 Ollama 並  ollama pull qwen2.5vl:7b
 """
 import os, json, base64, re, traceback, threading
+import cv2
+import numpy as np
 import requests
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -144,24 +146,150 @@ def normalize(d: dict) -> dict:
                     fields["email"], fields["website"], fields["address"]] if v)
     return {"text": text, "fields": fields}
 
-@app.get("/")
-def health():
-    return {"ok": True, "model": MODEL, "ollama": OLLAMA}
+# ===== 名片自動裁切拉正(相簿/上傳的照片用;App 原生掃描器拍的已裁好)=====
+# 找名片四個角 → 透視校正成正面矩形。找不到可信的四邊形就回原圖,不硬裁。
+def _order(pts: np.ndarray) -> np.ndarray:
+    # 依 左上、右上、右下、左下 排序
+    s, d = pts.sum(1), np.diff(pts, axis=1).ravel()
+    return np.array([pts[s.argmin()], pts[d.argmin()], pts[s.argmax()], pts[d.argmax()]], np.float32)
 
-@app.post("/ocr")
-async def ocr(req: Request):
+def _plausible(quad: np.ndarray, area_img: float) -> bool:
+    q = _order(quad)
+    w = max(np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[3]))
+    h = max(np.linalg.norm(q[3] - q[0]), np.linalg.norm(q[2] - q[1]))
+    if min(w, h) < 1:
+        return False
+    ratio = max(w, h) / min(w, h)
+    frac = cv2.contourArea(q) / area_img
+    # 四邊都完全水平/垂直 = 截圖或掃描檔裡的框,不是手機拍的名片
+    sides = [q[(i + 1) % 4] - q[i] for i in range(4)]
+    if all(min(abs(np.degrees(np.arctan2(dy, dx))) % 90, 90 - abs(np.degrees(np.arctan2(dy, dx))) % 90) < 0.5 for dx, dy in sides):
+        return False
+    return 0.12 <= frac <= 0.97 and 1.1 <= ratio <= 2.4 and cv2.isContourConvex(q.astype(np.int32))
+
+def _side_support(edges: np.ndarray, q: np.ndarray) -> float:
+    # 四條邊各自有多少比例落在邊緣上,取最弱的一邊(真名片四邊都該有邊緣)
+    h, w = edges.shape
+    worst = 1.0
+    for i in range(4):
+        a, b = q[i], q[(i + 1) % 4]
+        t = np.linspace(0.08, 0.92, 40)[:, None]       # 避開圓角
+        p = np.rint(a + (b - a) * t).astype(int)
+        p[:, 0] = p[:, 0].clip(0, w - 1); p[:, 1] = p[:, 1].clip(0, h - 1)
+        worst = min(worst, float((edges[p[:, 1], p[:, 0]] > 0).mean()))
+    return worst
+
+def _inout_contrast(lab: np.ndarray, q: np.ndarray) -> float:
+    # 名片內側一圈 vs 外側一圈的平均色差(Lab)。截圖裡的表格框線內外同底色 → 色差小,排除
+    m = np.zeros(lab.shape[:2], np.uint8)
+    cv2.fillConvexPoly(m, q.astype(np.int32), 255)
+    near, far = np.ones((7, 7), np.uint8), np.ones((25, 25), np.uint8)   # 跳過邊界線本身(框線顏色不算)
+    inner = cv2.subtract(cv2.erode(m, near), cv2.erode(m, far))
+    outer = cv2.subtract(cv2.dilate(m, far), cv2.dilate(m, near))
+    if not inner.any() or not outer.any():
+        return 0.0
+    return float(np.linalg.norm(np.array(cv2.mean(lab, inner)[:3]) - np.array(cv2.mean(lab, outer)[:3])))
+
+def _find_card(img: np.ndarray):
+    scale = min(1.0, 800 / max(img.shape[:2]))
+    small = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else img
+    area = small.shape[0] * small.shape[1]
+    blur = cv2.GaussianBlur(small, (5, 5), 0)
+    gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+    lab = cv2.cvtColor(blur, cv2.COLOR_BGR2LAB)
+
+    # 邊緣:灰階多組門檻 + 各色版(低對比的白卡淺桌、彩色雜物都抓得到)
+    edge_maps = [cv2.Canny(gray, lo, hi) for lo, hi in ((10, 30), (25, 75), (50, 150))]
+    edge_maps.append(np.max([cv2.Canny(blur[:, :, k], 25, 75) for k in range(3)], axis=0))
+    support = cv2.dilate(np.max(edge_maps, axis=0), np.ones((5, 5), np.uint8))
+
+    masks = [cv2.morphologyEx(e, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)) for e in edge_maps]
+    _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    masks += [otsu, 255 - otsu]                 # 名片比背景亮或暗都試
+
+    best, best_score = None, 0.0
+    for m in masks:
+        cnts, _ = cv2.findContours(m, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        for c in sorted(cnts, key=cv2.contourArea, reverse=True)[:12]:
+            if cv2.contourArea(c) < 0.05 * area and cv2.arcLength(c, True) < 0.5 * (small.shape[0] + small.shape[1]):
+                break
+            hull = cv2.convexHull(c)
+            cands = [cv2.approxPolyDP(hull, e * cv2.arcLength(hull, True), True) for e in (0.02, 0.04)]
+            quads = [a.reshape(4, 2).astype(np.float32) for a in cands if len(a) == 4]
+            quads.append(cv2.boxPoints(cv2.minAreaRect(c)).astype(np.float32))   # 圓角/邊緣破碎:最小外接矩形
+            for quad in quads:
+                if not _plausible(quad, area):
+                    continue
+                s = _side_support(support, _order(quad))
+                if s < 0.6 or _inout_contrast(lab, quad) < 15:
+                    continue
+                score = s * cv2.contourArea(quad) / area
+                if score > best_score:
+                    best, best_score = quad, score
+    return None if best is None else _order(best / scale)
+
+def crop_card(b64: str) -> tuple[str, bool]:
+    """回傳 (JPEG base64, 是否有裁切)。"""
+    img = cv2.imdecode(np.frombuffer(base64.b64decode(b64), np.uint8), cv2.IMREAD_COLOR)   # 會套用 EXIF 方向
+    if img is None:
+        raise ValueError("影像無法解碼")
+    q = _find_card(img)
+    if q is None:
+        return b64, False
+    w = int(max(np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[3])))
+    h = int(max(np.linalg.norm(q[3] - q[0]), np.linalg.norm(q[2] - q[1])))
+    dst = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], np.float32)
+    out = cv2.warpPerspective(img, cv2.getPerspectiveTransform(q, dst), (w, h))
+    s = 1600 / max(w, h)
+    if s < 1:
+        out = cv2.resize(out, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+    ok, buf = cv2.imencode(".jpg", out, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return base64.b64encode(buf.tobytes()).decode(), True
+
+async def _read_image(req: Request):
     try:
         body = await req.json()
     except Exception:
-        return JSONResponse({"error": "bad json"}, status_code=400)
+        return None, None
     img = body.get("image") or ""
     if "," in img and img.strip().startswith("data:"):
         img = img.split(",", 1)[1]            # 容許 dataURL
+    return body, img
+
+@app.get("/")
+def health():
+    return {"ok": True, "model": MODEL, "ollama": OLLAMA, "crop": True}
+
+@app.post("/crop")
+async def crop(req: Request):
+    # 只裁切不辨識:{image} → {image, cropped}
+    body, img = await _read_image(req)
     if not img:
         return JSONResponse({"error": "no image"}, status_code=400)
     try:
+        out, cropped = await run_in_threadpool(crop_card, img)
+        return {"image": out, "cropped": cropped}
+    except Exception as e:
+        return JSONResponse({"error": f"裁切失敗:{e}"}, status_code=400)
+
+@app.post("/ocr")
+async def ocr(req: Request):
+    # 帶 crop:true → 先裁切拉正再辨識,回應多 image(裁好的 JPEG base64)與 cropped
+    body, img = await _read_image(req)
+    if body is None:
+        return JSONResponse({"error": "bad json"}, status_code=400)
+    if not img:
+        return JSONResponse({"error": "no image"}, status_code=400)
+    extra = {}
+    if body.get("crop"):
+        try:
+            img, cropped = await run_in_threadpool(crop_card, img)
+            extra = {"image": img, "cropped": cropped} if cropped else {"cropped": False}
+        except Exception:
+            traceback.print_exc()             # 裁切失敗不影響辨識
+    try:
         raw = await run_in_threadpool(call_ollama, img)
-        return normalize(raw)
+        return {**normalize(raw), **extra}
     except Exception as e:
         traceback.print_exc()
         return JSONResponse({"error": f"辨識失敗:{e}"}, status_code=502)

@@ -219,6 +219,22 @@ function normEndpoint(u) {
   if (u && !/\/ocr$/i.test(u)) u += '/ocr';
   return u;
 }
+// 相簿/上傳照片:請 GPU 伺服器找名片邊框裁切拉正。沒設自訂伺服器、找不到名片或失敗都回 null(沿用原圖)
+async function cropCard(source) {
+  const custom = settings.ocrEndpoint && settings.ocrEndpoint.trim();
+  if (!custom) return null;
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const killer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 20000);
+  try {
+    const r = await fetch(normEndpoint(custom).replace(/\/ocr$/i, '/crop'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: await srcToBase64(source) }), signal: ctrl ? ctrl.signal : undefined,
+    });
+    const j = r.ok ? await r.json() : {};
+    return j.cropped && j.image ? await loadImage('data:image/jpeg;base64,' + j.image) : null;
+  } catch (e) { return null; }
+  finally { clearTimeout(killer); }
+}
 async function remoteOCR(source) {
   const b64 = await srcToBase64(source);
   const langHints = OCR_LANG_HINTS[settings.ocrLang] || ['zh-Hant', 'en'];
@@ -229,13 +245,14 @@ async function remoteOCR(source) {
   try {
     const r = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: b64, langHints }), signal: ctrl ? ctrl.signal : undefined,
+      body: JSON.stringify({ image: b64, langHints, crop: true }), signal: ctrl ? ctrl.signal : undefined,
     });
     if ((r.status === 404 || r.status === 501) && !custom) { cloudOcrDown = true; const j = await r.json().catch(() => ({})); throw new Error(j.error || '雲端未設定'); }
     if (!r.ok) throw new Error('辨識服務 ' + r.status);
     const j = await r.json();
     if (j.error) throw new Error(j.error);
-    return { text: (j.text || '').trim(), fields: normalizeRemoteFields(j.fields) };
+    // crop:GPU 伺服器找到名片會回裁切拉正後的圖(雲端 Vision 會忽略)
+    return { text: (j.text || '').trim(), fields: normalizeRemoteFields(j.fields), image: j.cropped && j.image ? 'data:image/jpeg;base64,' + j.image : '' };
   } finally { clearTimeout(killer); }
 }
 
@@ -426,6 +443,11 @@ async function recognize(source, previewUrl) {
         $('#ocrText').textContent = customEp ? '高精準辨識中(本機 GPU)…' : '雲端高精準辨識中…';
         const r = await remoteOCR(source);
         text = r.text; remoteFields = r.fields;
+        if (r.image) {   // 換成裁切拉正後的名片圖
+          try { lastImage = compressImage(await loadImage(r.image)) || lastImage; } catch (e) {}
+          $('#preview').src = r.image;
+          if (recapC) { recapC.images[recaptureSide] = lastImage; recapC.image = recapC.images[0] || recapC.image; save(); render(); }
+        }
         usedEngine = customEp ? '本機 GPU' : '雲端 Vision';
       } catch (e) {
         text = null;
@@ -1217,7 +1239,8 @@ async function storeCardPhoto(file) {
   const c = contacts.find(x => x.id === photoTargetId); if (!c) return;
   try {
     const url = URL.createObjectURL(file);
-    const img = await loadImage(url);
+    const raw = await loadImage(url);
+    const img = (await cropCard(raw)) || raw;   // 自動裁切拉正,失敗用原圖
     const data = compressImage(img, 1100, 0.74);
     URL.revokeObjectURL(url);
     if (!data) { toast('圖片讀取失敗'); return; }
